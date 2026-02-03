@@ -146,17 +146,57 @@ textarea {
     font-family: 'Roboto Mono', monospace; /* Una letra donde cada carácter mide lo mismo ayuda a alinear */
 }
 
+/* Mejora de los acordes: Azul vibrante y negrita */
+/* Acordes en Anaranjado llamativo */
 .chord-highlight {
-    color: #2196F3; /* Azul para que resalte */
-    font-weight: bold;
-    background-color: rgba(33, 150, 243, 0.1);
-    padding: 0 2px;
+    color: #ff9500; /* Naranja vibrante */
+    font-weight: 800;
+    background-color: rgba(255, 149, 0, 0.1);
+    padding: 1px 3px;
     border-radius: 3px;
+    display: inline-block;
 }
 
-/* Importante para que los acordes copias de internet no se muevan de su sitio */
-.music-line, .plain-line {
-    white-space: pre; /* Mantiene los espacios exactos de la fuente original */
-    font-family: monospace; /* Fuente de ancho fijo para que los acordes queden sobre la letra */
-    min-height: 1.2em;
+/* Para que la previsualización en la lista no se desordene */
+.note-preview-content {
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+    max-height: 3em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* Botones de la barra superior */
+.btn-tool {
+    background: #f0f0f5;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-weight: bold;
+    color: #333;
+}
+
+.btn-action {
+    background: none;
+    border: none;
+    color: #007aff;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.btn-danger {
+    background: none;
+    border: none;
+    color: #ff3b30; /* Rojo para la opción de quitar */
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* Asegurar que el texto no se tape con el botón flotante */
+#note-textarea {
+    padding-bottom: 100px; 
+    line-height: 1.6;
 }

@@ -167,24 +167,27 @@ function closeLocal() {
     // renderNotes(); 
 }
 async function saveAndClose() {
-    const txt = document.getElementById('note-textarea').value;
-    const selectedFolder = document.getElementById('folder-selector').value;
-    
-    if (currentNoteId) {
-        // Creamos el array de carpetas: Siempre incluimos "Notas"
-        // y le sumamos la carpeta que elegiste en el editor.
-        const foldersArray = ["Notas"];
-        if (selectedFolder !== "Notas") {
-            foldersArray.push(selectedFolder);
-        }
+    const textarea = document.getElementById('note-textarea');
+    if (!textarea || !currentNoteId) return;
 
-        notesCol.doc(currentNoteId).update({ 
-            content: txt,
-            folders: foldersArray, // Guardamos los accesos directos
+    const newContent = textarea.value;
+
+    try {
+        // 1. Guardamos en Firebase
+        await notesCol.doc(currentNoteId).update({
+            content: newContent,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-    }
-    document.getElementById('editor-view').classList.remove('active');
+
+        // 2. TRUCO VITAL: Actualizamos manualmente la nota en nuestro array local
+        // Esto hace que la lista cambie SIN tener que esperar a Firebase ni cambiar de pestaña
+        const noteIndex = notes.findIndex(n => n.id === currentNoteId);
+        if (noteIndex !== -1) {
+            notes[noteIndex].content = newContent;
+        }
+
+        // 3. Cerramos el editor
+        document.getElementById('editor-view').classList.remove('active');
 
         // 4. Refrescamos la lista inmediatamente
         renderNotes();
@@ -228,19 +231,6 @@ function openPicker() {
         picker.classList.add('active');
         // Llamamos a la función que dibuja la lista
         renderFolderPicker(); 
-    }
-}
-function deleteNote(id) {
-    if (!confirm("¿Seguro que deseas eliminar?")) return;
-
-    if (currentFolder === "Notas") {
-        // ELIMINACIÓN TOTAL: Estás en la carpeta principal
-        notesCol.doc(id).delete();
-    } else {
-        // QUITAR ACCESO DIRECTO: Solo te borra de la carpeta actual
-        notesCol.doc(id).update({
-            folders: ["Notas"] // Se mantiene solo en la principal
-        });
     }
 }
 

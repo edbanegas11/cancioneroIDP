@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notas iOS - Firebase Pro</title>
+    <title>CANCIONERO IDP</title>
     
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -77,6 +77,16 @@
 
     <div id="editor-view">
         <div class="toolbar">
+    <button onclick="closeLocal()" style="color:var(--text-muted); background:none; border:none; font-weight:400; font-size: 1rem; cursor:pointer;">Cerrar</button>
+    
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <button onclick="transpose(-1)" style="background:#eee; border:none; padding:5px 10px; border-radius:5px; font-weight:bold;">-½</button>
+        <span style="font-size: 0.7rem; color: gray;">Acordes</span>
+        <button onclick="transpose(1)" style="background:#eee; border:none; padding:5px 10px; border-radius:5px; font-weight:bold;">+½</button>
+    </div>
+
+    <button onclick="saveAndClose()" style="color:var(--accent); background:none; border:none; font-weight:600; font-size: 1rem; cursor:pointer;">Listo</button>
+</div>
             <div style="display: flex; gap: 10px; align-items: center;">
                 <button onclick="transpose(-1)" style="background:#eee; border:none; padding:5px 10px; border-radius:5px; font-weight:bold; cursor:pointer;">-½</button>
                 <span style="font-size: 0.7rem; color: gray;">Acordes</span>

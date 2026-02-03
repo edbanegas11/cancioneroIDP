@@ -30,6 +30,104 @@ let folders = [];
 let currentFolder = "Notas";
 let currentNoteId = null;
 let searchQuery = "";
+const PIN_CORRECTO = "019283";
+
+// --- FUNCIONES DE SEGURIDAD (PIN) ---
+
+function enterEditMode() {
+    const modal = document.getElementById('pin-modal');
+    const input = document.getElementById('pin-input');
+    const error = document.getElementById('pin-error');
+    
+    if (modal) {
+        input.value = ""; 
+        error.style.opacity = "0"; 
+        modal.style.display = 'flex'; 
+        setTimeout(() => input.focus(), 100);
+    }
+}
+
+let pendingAction = null; 
+
+// 1. Inicia el proceso de seguridad
+function secureAction(actionType) {
+    console.log("Acción segura iniciada:", actionType);
+    pendingAction = actionType;
+    
+    const modal = document.getElementById('pin-modal');
+    const input = document.getElementById('pin-input');
+    const error = document.getElementById('pin-error');
+    
+    if (modal) {
+        input.value = "";
+        if (error) error.style.opacity = "0";
+        modal.style.display = 'flex';
+        setTimeout(() => input.focus(), 100);
+    } else {
+        console.error("No se encontró el modal del PIN en el HTML");
+    }
+}
+
+// 2. Verifica el código 019283
+function verifyPin() {
+    const input = document.getElementById('pin-input').value;
+    const error = document.getElementById('pin-error');
+    
+    // Usamos el código que definiste: 019283
+    if (input === "019283") {
+        document.getElementById('pin-modal').style.display = 'none';
+        
+        if (pendingAction === 'delete') {
+            removeNoteFromCurrentFolder(); // Esta función ya existe en tu código
+        } else if (pendingAction === 'edit') {
+            document.getElementById('view-mode').style.display = 'none';
+            document.getElementById('edit-mode').style.display = 'flex';
+            setTimeout(() => document.getElementById('note-textarea').focus(), 100);
+        }
+        pendingAction = null; 
+    } else {
+        if (error) {
+            error.style.opacity = "1";
+            error.innerText = "PIN Incorrecto";
+        }
+        document.getElementById('pin-input').value = "";
+    }
+}
+
+function closePinModal() {
+    document.getElementById('pin-modal').style.display = 'none';
+}
+
+function exitEditMode() {
+    // Guardar cambios al salir
+    const content = document.getElementById('note-textarea').value;
+    if (currentNoteId) {
+        notesCol.doc(currentNoteId).update({ 
+            content: content,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+    document.getElementById('edit-mode').style.display = 'none';
+    document.getElementById('view-mode').style.display = 'flex';
+    updateSongDisplay();
+}
+
+// --- FUNCIONES DE VISUALIZACIÓN ---
+
+function updateSongDisplay() {
+    const text = document.getElementById('note-textarea').value;
+    const display = document.getElementById('song-display');
+    if (!display) return;
+    
+    const chordRegex = /(?<![a-zA-Z])([A-G])([#b]*)(m|maj7|maj|dim|aug|sus4|sus|add9|7|2|4|5|M)?(?![a-zA-Z])/g;
+
+    display.innerHTML = text.split('\n').map(line => {
+        const highlighted = line.replace(chordRegex, match => {
+            return `<span class="chord-highlight">${match}</span>`;
+        });
+        return `<div>${highlighted || '&nbsp;'}</div>`;
+    }).join('');
+}
 
 // --- FUNCIONES DE NOTAS ---
 
@@ -38,36 +136,25 @@ function transpose(semitones) {
     if (!textarea) return;
 
     let text = textarea.value;
-    
     if (text.includes('b')) useFlats = true;
     else if (text.includes('#')) useFlats = false;
 
-    // La Regex ahora busca:
-    // (?<![a-zA-Z]) -> Que NO tenga una letra antes
-    // ([A-G]) -> La nota base
-    // ([#b]*) -> Los accidentes
-    // (...) -> El tipo de acorde
-    // (?![a-zA-Z]) -> Que NO tenga una letra después (esto salva a "Grande")
-    const chordRegex = /(?<![a-zA-Z])([A-G])([#b]*)(m|maj7|maj|dim|aug|sus4|sus|add9|7|2|4|5|M)?(?![a-zA-Z])/g;
+   const chordRegex = /(?<=^|\s)([A-G])([#b]*)(m|maj7|maj|dim|aug|sus4|sus|add9|7|2|4|5|M)?(?=\s|$)/g;
 
     const newText = text.replace(chordRegex, (fullMatch, letter, accidentals, suffix) => {
-        // Solo procesamos si es una nota real con su primer accidente
         let baseNote = letter + (accidentals.length > 0 ? accidentals[0] : "");
-        
         let index = scaleSharp.indexOf(baseNote);
         if (index === -1) index = scaleFlat.indexOf(baseNote);
-        
         if (index === -1) return fullMatch;
 
         let newIndex = (index + semitones) % 12;
         if (newIndex < 0) newIndex += 12;
-        
         const newBaseNote = useFlats ? scaleFlat[newIndex] : scaleSharp[newIndex];
-        
         return newBaseNote + (suffix || "");
     });
 
     textarea.value = newText;
+    updateSongDisplay(); // Actualizar vista lectura al transponer
     
     if (currentNoteId) {
         notesCol.doc(currentNoteId).update({ content: newText });
@@ -83,14 +170,13 @@ async function createNewNote() {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         currentNoteId = newNoteRef.id;
-        const editor = document.getElementById('editor-view');
-        const textarea = document.getElementById('note-textarea');
-        if (editor && textarea) {
-            textarea.value = "";
-            editor.classList.add('active');
-            renderFolderPicker();
-            setTimeout(() => textarea.focus(), 300);
-        }
+        
+        document.getElementById('note-textarea').value = "";
+        updateSongDisplay();
+        
+        document.getElementById('editor-view').classList.add('active');
+        // Al ser nota nueva, entramos directo a editar sin PIN (opcional) o pidiendo PIN
+        enterEditMode(); 
     } catch (e) { console.error("Error al crear:", e); }
 }
 
@@ -98,31 +184,13 @@ function openNote(id) {
     currentNoteId = id;
     const note = notes.find(n => n.id === id);
     if (!note) return;
-    const textarea = document.getElementById('note-textarea');
-    textarea.value = note.content;
-    const viewer = document.getElementById('note-viewer'); 
-    if (viewer) viewer.innerHTML = formatMusicalText(note.content);
-    renderFolderPicker();
+
+    document.getElementById('note-textarea').value = note.content;
+    updateSongDisplay();
+
     document.getElementById('editor-view').classList.add('active');
-    setTimeout(() => textarea.focus(), 300);
-}
-
-function formatMusicalText(text) {
-    if (!text) return "";
-    
-    // Regex que protege las palabras y detecta acordes
-    const chordRegex = /(?<![a-zA-Z])([A-G])([#b]*)(m|maj7|maj|dim|aug|sus4|sus|add9|7|2|4|5|M)?(?![a-zA-Z])/g;
-
-    return text.split('\n').map(line => {
-        let hasChords = false;
-        const highlightedLine = line.replace(chordRegex, match => {
-            hasChords = true;
-            return `<span class="chord-highlight">${match}</span>`;
-        });
-        
-        // Si la línea tiene acordes, le damos un estilo especial
-        return `<div class="${hasChords ? 'music-line' : 'plain-line'}">${highlightedLine}</div>`;
-    }).join('\n');
+    document.getElementById('view-mode').style.display = 'flex';
+    document.getElementById('edit-mode').style.display = 'none';
 }
 
 async function saveAndClose() {
@@ -138,7 +206,7 @@ async function saveAndClose() {
     } catch (e) { console.error("Error al guardar:", e); }
 }
 
-// --- FUNCIONES DE CARPETAS ---
+// --- FUNCIONES DE CARPETAS Y OTROS ---
 
 async function addNewFolder() {
     const n = prompt("Nombre de la nueva carpeta:");
@@ -162,20 +230,15 @@ function selectFolder(name) {
     renderNotes();
 }
 
-// --- LÓGICA DE VINCULACIÓN (PICKER) ---
-
 function openPicker() {
     const picker = document.getElementById('folder-picker');
     if (picker) {
         picker.style.display = 'flex';
-        picker.classList.add('active');
         renderFolderPicker();
     }
 }
 
-function closePicker() { 
-    document.getElementById('folder-picker').style.display = 'none'; 
-}
+function closePicker() { document.getElementById('folder-picker').style.display = 'none'; }
 
 function renderFolderPicker() {
     const container = document.getElementById('picker-list');
@@ -184,25 +247,20 @@ function renderFolderPicker() {
     if (!note) return;
 
     container.innerHTML = folders.map(f => {
-        const folderName = (typeof f === 'object') ? f.name : f;
-        const isLinked = note.folders && note.folders.includes(folderName);
+        const isLinked = note.folders && note.folders.includes(f.name);
         return `
-            <div class="picker-item" onclick="toggleFolderLink('${folderName}')" 
-                 style="display:flex; justify-content:space-between; align-items:center; padding:15px; border-bottom:1px solid #eee; cursor:pointer;">
-                <span style="color:#333; font-weight:500;">${folderName}</span>
-                <span style="color:#007aff; font-weight:bold; font-size:1.2rem;">
-                    ${isLinked ? '✓' : ''}
-                </span>
+            <div class="picker-item" onclick="toggleFolderLink('${f.name}')">
+                <span style="color:#333; font-weight:500;">${f.name}</span>
+                <span style="color:#007aff; font-weight:bold; font-size:1.2rem;">${isLinked ? '✓' : ''}</span>
             </div>`;
     }).join('');
 }
 
 async function toggleFolderLink(folderName) {
     if (!currentNoteId) return;
-    const note = notes.find(n => n.id === currentNoteId);
-    if (!note) return;
-    const isLinked = note.folders && note.folders.includes(folderName);
     const noteRef = notesCol.doc(currentNoteId);
+    const note = notes.find(n => n.id === currentNoteId);
+    const isLinked = note.folders && note.folders.includes(folderName);
 
     try {
         if (isLinked) {
@@ -215,31 +273,45 @@ async function toggleFolderLink(folderName) {
     } catch (e) { console.error("Error vinculando:", e); }
 }
 
-// --- ELIMINACIÓN Y DESVINCULACIÓN ---
-
 async function removeNoteFromCurrentFolder() {
-    if (!currentNoteId) return;
-    const note = notes.find(n => n.id === currentNoteId);
-    if (!note) return;
+    if (!currentNoteId) {
+        console.error("No hay un ID de nota seleccionado");
+        return;
+    }
 
-    try {
-        if (currentFolder === "Notas") {
-            if (confirm("¿Deseas eliminar esta nota permanentemente?")) {
-                await notesCol.doc(currentNoteId).delete();
-                document.getElementById('editor-view').classList.remove('active');
-            }
-        } else {
-            if (confirm(`¿Quitar de la carpeta "${currentFolder}"?`)) {
-                await notesCol.doc(currentNoteId).update({
+    const mensaje = currentFolder === "Notas" 
+        ? "¿Eliminar esta nota permanentemente?" 
+        : `¿Quitar de la carpeta "${currentFolder}"?`;
+
+    if (confirm(mensaje)) {
+        try {
+            // Referencia directa al documento
+            const noteRef = notesCol.doc(currentNoteId);
+
+            if (currentFolder === "Notas") {
+                // BORRADO TOTAL
+                await noteRef.delete();
+            } else {
+                // SOLO QUITAR DE CARPETA
+                await noteRef.update({
                     folders: firebase.firestore.FieldValue.arrayRemove(currentFolder)
                 });
-                document.getElementById('editor-view').classList.remove('active');
             }
-        }
-    } catch (e) { console.error(e); }
-}
 
-// --- RENDERIZADO PRINCIPAL ---
+            // IMPORTANTE: Primero cerramos la vista, luego limpiamos el ID
+            document.getElementById('editor-view').classList.remove('active');
+            
+            // Esperamos un poco antes de limpiar el ID para evitar conflictos con otras funciones
+            setTimeout(() => {
+                currentNoteId = null;
+            }, 500);
+
+        } catch (e) {
+            console.error("Error al borrar/quitar:", e);
+            alert("No se pudo completar la acción. La nota tal vez ya fue borrada.");
+        }
+    }
+}
 
 function renderFolders() {
     const bar = document.getElementById('folder-bar');
@@ -287,7 +359,7 @@ function renderNotes() {
         groups[letter].forEach(note => {
             const lines = note.content.split('\n');
             list.innerHTML += `
-                <div class="note-item ${note.id === currentNoteId ? 'active-note' : ''}" onclick="openNote('${note.id}')">
+                <div class="note-item" onclick="openNote('${note.id}')">
                     <span style="font-weight:600; display:block;">${lines[0] || "Nueva nota"}</span>
                     <span style="font-size:0.85rem; color:gray;">${lines[1] || "Ver nota..."}</span>
                 </div>`;
@@ -303,29 +375,32 @@ function handleSearch() {
     }
 }
 
-// --- CONEXIÓN REAL-TIME ---
-
 window.onload = () => {
     foldersCol.orderBy('name').onSnapshot(snap => {
         const fbFolders = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name })).filter(f => f.name !== "Notas");
         folders = [{ id: 'default', name: 'Notas' }, ...fbFolders];
         renderFolders();
-        renderFolderPicker();
     });
 
     notesCol.onSnapshot(snap => {
         notes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderNotes();
         renderFolders();
-        renderFolderPicker();
+    });
+    
+    // Escuchar Enter en el PIN
+    document.getElementById('pin-input')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') verifyPin();
     });
 };
 
 // --- EXPORTACIÓN ---
+window.enterEditMode = enterEditMode;
+window.verifyPin = verifyPin;
+window.closePinModal = closePinModal;
+window.exitEditMode = exitEditMode;
 window.handleSearch = handleSearch;
 window.selectFolder = selectFolder;
-window.renderFolderPicker = renderFolderPicker;
-window.renderNotes = renderNotes;
 window.createNewNote = createNewNote;
 window.addNewFolder = addNewFolder;
 window.deleteFolder = deleteFolder;

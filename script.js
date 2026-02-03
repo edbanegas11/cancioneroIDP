@@ -119,7 +119,8 @@ function updateSongDisplay() {
     const display = document.getElementById('song-display');
     if (!display) return;
     
-    const chordRegex = /(?<![a-zA-Z])([A-G])([#b]*)(m|maj7|maj|dim|aug|sus4|sus|add9|7|2|4|5|M)?(?![a-zA-Z])/g;
+    // Esta versión acepta el acorde si le sigue un espacio O el fin de la línea (\n o $)
+const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus4|sus2|sus|add9|7|2|4|5|M|13|9|11)?(?![a-zA-Z])/g;
 
     display.innerHTML = text.split('\n').map(line => {
         const highlighted = line.replace(chordRegex, match => {
@@ -136,28 +137,45 @@ function transpose(semitones) {
     if (!textarea) return;
 
     let text = textarea.value;
+    
+    // Detectar si usamos sostenidos o bemoles basado en el texto actual
     if (text.includes('b')) useFlats = true;
     else if (text.includes('#')) useFlats = false;
 
-   const chordRegex = /(?<=^|\s)([A-G])([#b]*)(m|maj7|maj|dim|aug|sus4|sus|add9|7|2|4|5|M)?(?=\s|$)/g;
+    // REGEX MAESTRA: 
+    // Grupo 1: La nota base ([A-G][#b]?)
+    // Grupo 2: El sufijo (m7, maj7, etc.)
+    const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus4|sus2|sus|add9|7|2|4|5|M|13|9|11)?(?![a-zA-Z])/g;
 
-    const newText = text.replace(chordRegex, (fullMatch, letter, accidentals, suffix) => {
-        let baseNote = letter + (accidentals.length > 0 ? accidentals[0] : "");
+    const newText = text.replace(chordRegex, (fullMatch, baseNote, suffix) => {
+        // Buscamos la posición de la nota en las escalas
         let index = scaleSharp.indexOf(baseNote);
         if (index === -1) index = scaleFlat.indexOf(baseNote);
+        
+        // Si no es una nota válida (un error de detección), devolvemos el texto original
         if (index === -1) return fullMatch;
 
+        // Calculamos el nuevo índice (0-11)
         let newIndex = (index + semitones) % 12;
         if (newIndex < 0) newIndex += 12;
+        
+        // Obtenemos la nueva nota base
         const newBaseNote = useFlats ? scaleFlat[newIndex] : scaleSharp[newIndex];
+        
+        // Devolvemos la nueva nota + el sufijo original (ej: D# + m7)
         return newBaseNote + (suffix || "");
     });
 
+    // Actualizamos el textarea y la vista
     textarea.value = newText;
-    updateSongDisplay(); // Actualizar vista lectura al transponer
+    updateSongDisplay(); 
     
+    // Guardar automáticamente en Firebase para no perder el cambio de tono
     if (currentNoteId) {
-        notesCol.doc(currentNoteId).update({ content: newText });
+        notesCol.doc(currentNoteId).update({ 
+            content: newText,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
     }
 }
 

@@ -160,7 +160,14 @@ function formatMusicalText(text) {
         return `<div class="plain-line">${line}</div>`;
     }).join('\n');
 }
-
+// FUNCIÓN SALIR: Solo cierra la vista, no toca la base de datos
+function closeLocal() {
+    // Cerramos el editor inmediatamente
+    document.getElementById('editor-view').classList.remove('active');
+    
+    // Opcional: Podrías recargar la nota para descartar cambios locales
+    // renderNotes(); 
+}
 async function saveAndClose() {
     const textarea = document.getElementById('note-textarea');
     if (!textarea || !currentNoteId) return;

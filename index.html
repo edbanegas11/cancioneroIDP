@@ -3,24 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notas iOS - Firebase Pro</title>
+    <title>CANCIONERO IDP</title>
     
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
     <link rel="apple-touch-icon" href="icon.png">
-<link rel="icon" type="image/png" href="icon.png">
-    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="icon.png">
 
     <style>
         :root {
             --bg: #ffffff;
             --secondary-bg: #f2f2f7;
-            --accent: #ff9500;
+            --accent: #007aff; /* Cambiado a Azul iOS para el check y acciones */
+            --folder-accent: #ff9500; /* Naranja para carpetas */
             --text-main: #1c1c1e;
             --text-muted: #8e8e93;
             --border: #e5e5ea;
+            --danger: #ff3b30;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -28,15 +29,16 @@
 
         .app-container { width: 100%; max-width: 430px; height: 100vh; background: var(--bg); position: relative; overflow: hidden; display: flex; flex-direction: column; }
 
+        /* Lista de Notas */
         .folder-section { padding: 1rem 1.5rem; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
-        .folder-chip { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; white-space: nowrap; cursor: pointer; background: #f0f0f0; transition: 0.3s; border: none; }
-        .folder-chip.active { background: var(--accent); color: white; }
-        .folder-count { font-size: 0.7rem; opacity: 0.6; margin-left: 4px; }
-
+        .folder-chip { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; white-space: nowrap; cursor: pointer; background: #f0f0f0; transition: 0.3s; border: none; display: flex; align-items: center; }
+        .folder-chip.active { background: var(--folder-accent); color: white; }
+        
         .notes-list { flex: 1; overflow-y: auto; padding: 0 1.5rem 5rem; }
-        .alphabet-header { font-size: 0.8rem; font-weight: 700; color: var(--accent); border-bottom: 0.5px solid var(--border); padding: 15px 0 5px; text-transform: uppercase; }
+        .alphabet-header { font-size: 0.8rem; font-weight: 700; color: var(--folder-accent); border-bottom: 0.5px solid var(--border); padding: 15px 0 5px; text-transform: uppercase; }
         .note-item { padding: 12px 0; border-bottom: 0.5px solid #f2f2f2; cursor: pointer; }
 
+        /* Editor */
         #editor-view { 
             position: absolute; inset: 0; background: var(--bg); 
             display: flex; flex-direction: column; z-index: 10; 
@@ -44,14 +46,50 @@
         }
         #editor-view.active { transform: translateY(0); }
         
-        .toolbar { display: flex; justify-content: space-between; padding: 1rem; border-bottom: 0.5px solid var(--border); align-items: center; }
-        textarea { flex: 1; border: none; outline: none; padding: 1.5rem; font-size: 1.1rem; resize: none; font-family: inherit; line-height: 1.5; }
+        /* Toolbar Superior Nueva */
+        .toolbar { 
+            display: flex; flex-direction: column; 
+            border-bottom: 0.5px solid var(--border); 
+            background: #fff;
+        }
+        .toolbar-top { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; }
+        .toolbar-bottom { display: flex; justify-content: space-between; padding: 10px 15px; background: #fafafa; border-top: 0.5px solid #eee; }
 
-        #folder-picker { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 20; align-items: flex-end; }
-        .picker-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 2rem; }
-        .picker-item { padding: 15px; border-bottom: 1px solid #f2f2f2; cursor: pointer; }
+        .btn-icon { background: none; border: none; color: var(--accent); cursor: pointer; display: flex; align-items: center; }
+        .btn-text { background: none; border: none; color: var(--accent); font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+        .btn-danger { color: var(--danger); }
+        
+        .transpose-tool { display: flex; gap: 8px; align-items: center; background: #eee; padding: 4px 10px; border-radius: 10px; }
+        .btn-transpose { background: none; border: none; font-weight: 800; padding: 5px; cursor: pointer; color: #333; }
 
-        .btn-new { position: absolute; bottom: 2rem; right: 2rem; background: var(--accent); color: white; width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; }
+        textarea { flex: 1; border: none; outline: none; padding: 1.5rem; font-size: 1.1rem; resize: none; font-family: inherit; line-height: 1.5; padding-bottom: 100px; }
+
+        /* Resaltado de Acordes */
+        .chord-highlight {
+            color: var(--accent);
+            font-weight: 800;
+            background: rgba(0, 122, 255, 0.1);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        /* Botón Guardar (Check Azul) */
+        .btn-check-float { 
+            position: absolute; bottom: 2rem; right: 2rem; 
+            background: var(--accent); color: white; 
+            width: 60px; height: 60px; border-radius: 50%; 
+            border: none; cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(0,122,255,0.3); 
+            display: flex; align-items: center; justify-content: center; 
+            z-index: 20;
+        }
+
+        /* Picker de Carpetas */
+        #folder-picker { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 30; align-items: flex-end; }
+        .picker-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 2rem; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); }
+        .picker-item { padding: 15px; border-bottom: 1px solid #f2f2f2; cursor: pointer; display: flex; justify-content: space-between; }
+
+        .btn-new { position: absolute; bottom: 2rem; right: 2rem; background: var(--folder-accent); color: white; width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -59,8 +97,10 @@
 <div class="app-container">
     <div id="list-view" style="display:flex; flex-direction:column; height:100%;">
         <header style="padding: 2.5rem 1.5rem 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-            <h1 style="font-size: 2.2rem; font-weight: 800;">Notas</h1>
-            <button onclick="addNewFolder()" style="color:var(--accent); background:none; border:none; font-size:1.8rem; cursor:pointer;">+</button>
+            <h1 style="font-size: 2.2rem; font-weight: 800;">Lista de Canciones</h1>
+            <button onclick="addNewFolder()" style="color:var(--folder-accent); background:none; border:none; font-size:1.8rem; cursor:pointer;">
+                <i data-lucide="folder-plus"></i>
+            </button>
         </header>
         
         <div style="padding: 0 1.5rem 1rem;">
@@ -77,32 +117,49 @@
 
     <div id="editor-view">
         <div class="toolbar">
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button onclick="transpose(-1)" style="background:#eee; border:none; padding:5px 10px; border-radius:5px; font-weight:bold; cursor:pointer;">-½</button>
-                <span style="font-size: 0.7rem; color: gray;">Acordes</span>
-                <button onclick="transpose(1)" style="background:#eee; border:none; padding:5px 10px; border-radius:5px; font-weight:bold; cursor:pointer;">+½</button>
-            </div>
-            <button onclick="saveAndClose()" style="color:var(--accent); background:none; border:none; font-weight:600; font-size: 1rem; cursor:pointer;">Listo</button>
-            <div>
-                <button onclick="openPicker()" style="background:#f0f0f0; border:none; padding:6px 12px; border-radius:8px; color:var(--accent); font-weight:600; cursor:pointer;">Vincular a...</button>
-                <button onclick="removeNoteFromCurrentFolder()" style="color:red; background:none; border:none; margin-left:10px; cursor:pointer;">Quitar de aquí</button>
+            <div class="toolbar-top">
+                <button onclick="saveAndClose()" class="btn-icon">
+                    <i data-lucide="chevron-left" style="width: 30px; height: 30px;"></i>
+                </button>
+                
+                <div class="transpose-tool">
+                    <button onclick="transpose(-1)" class="btn-transpose">-½</button>
+                    <span style="font-size: 0.65rem; color: #666; text-transform: uppercase; letter-spacing: 1px;">Acordes</span>
+                    <button onclick="transpose(1)" class="btn-transpose">+½</button>
+                </div>
+
+                <div style="width: 30px;"></div> </div>
+
+            <div class="toolbar-bottom">
+                <button onclick="openPicker()" class="btn-text">
+                    <i data-lucide="folder-input" style="width: 16px; margin-right: 5px; vertical-align: middle;"></i>
+                    Mover a...
+                </button>
+                <button onclick="removeNoteFromCurrentFolder()" class="btn-text btn-danger">
+                    <i data-lucide="trash-2" style="width: 16px; margin-right: 5px; vertical-align: middle;"></i>
+                    Quitar de aquí
+                </button>
             </div>
         </div>
-        <textarea id="note-textarea" placeholder="Escribe algo increíble..."></textarea>
+
+        <textarea id="note-textarea" placeholder="Escribe la letra y acordes aquí..."></textarea>
+
+        <button class="btn-check-float" onclick="saveAndClose()">
+            <i data-lucide="check" style="width: 32px; height: 32px;"></i>
+        </button>
     </div>
 
     <div id="folder-picker" onclick="closePicker()">
         <div class="picker-content" onclick="event.stopPropagation()">
-            <h3 style="margin-bottom:1rem;">Aparecer también en:</h3>
+            <h3 style="margin-bottom:1.5rem; font-size: 1.2rem; font-weight: 700;">Seleccionar Carpeta</h3>
             <div id="picker-list"></div>
-            <button onclick="closePicker()" style="width:100%; margin-top:1rem; padding:12px; background:#f0f0f0; border:none; border-radius:10px; font-weight:600; cursor:pointer;">Cancelar</button>
+            <button onclick="closePicker()" style="width:100%; margin-top:1.5rem; padding:15px; background:#f2f2f7; border:none; border-radius:12px; font-weight:600; color:#333; cursor:pointer;">Cerrar</button>
         </div>
     </div>
 </div>
 
 <script src="script.js"></script>
 <script>
-    // Inicializar iconos
     lucide.createIcons();
 </script>
 </body>

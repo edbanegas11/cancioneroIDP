@@ -1,0 +1,162 @@
+:root {
+  --bg: #f2f2f7;
+  --card-bg: #ffffff;
+  --accent: #007aff;
+  --text: #1c1c1e;
+  --text-muted: #8e8e93;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+
+#root { width: 100%; max-width: 500px; min-height: 100vh; background: var(--card-bg); }
+
+.app-container { padding: 2rem; }
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+h1 { font-size: 2rem; font-weight: 800; letter-spacing: -1px; margin: 0; }
+
+.btn-add {
+  background: var(--accent);
+  color: white;
+  border: none;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.btn-add:hover { transform: scale(1.1); }
+
+/* Estilo de la Nota Individual */
+.note-card {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.note-card:hover { background: #fafafa; }
+
+.note-title { font-weight: 600; margin-bottom: 0.2rem; display: block; }
+.note-date { font-size: 0.8rem; color: var(--text-muted); }
+
+/* Editor de Nota */
+.editor {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: white;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  resize: none;
+  margin-top: 1rem;
+}
+
+.back-btn {
+  color: var(--accent);
+  background: none;
+  border: none;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn-action {
+    background: #f0f0f0;
+    color: var(--accent);
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 10px;
+}
+/* Estilo especial para el chip de la carpeta maestra */
+.folder-chip[onclick*="'Notas'"] {
+    border: 1px solid var(--accent);
+    font-weight: 700;
+}
+.folder-chip {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    /* Mantén tus otros estilos de padding, background, etc. */
+}
+
+.folder-chip i {
+    transition: opacity 0.2s;
+}
+
+.folder-chip i:hover {
+    opacity: 1;
+    color: #ff3b30; /* Color rojo de iOS al pasar el mouse por la X */
+}
+/* El acorde resaltado */
+.chord {
+    color: #007aff; /* Azul profesional */
+    font-weight: bold;
+    background: rgba(0, 122, 255, 0.1);
+    padding: 0 2px;
+    border-radius: 3px;
+}
+
+/* La línea que contiene acordes suele verse mejor con letra monoespaciada */
+.chord-line {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.95rem;
+    color: #444;
+    margin-bottom: -5px; /* Para que esté más cerca de la letra */
+}
+
+.lyric-line {
+    font-family: sans-serif;
+    margin-bottom: 10px;
+}
+/* Para que los espacios de la web original se respeten (VITAL) */
+#note-viewer, .music-line, .plain-line {
+    white-space: pre-wrap; 
+    font-family: 'Roboto Mono', monospace; /* Una letra donde cada carácter mide lo mismo ayuda a alinear */
+}
+
+.chord-highlight {
+    color: #2196F3; /* Azul para que resalte */
+    font-weight: bold;
+    background-color: rgba(33, 150, 243, 0.1);
+    padding: 0 2px;
+    border-radius: 3px;
+}
+
+/* Importante para que los acordes copias de internet no se muevan de su sitio */
+.music-line, .plain-line {
+    white-space: pre; /* Mantiene los espacios exactos de la fuente original */
+    font-family: monospace; /* Fuente de ancho fijo para que los acordes queden sobre la letra */
+    min-height: 1.2em;
+}

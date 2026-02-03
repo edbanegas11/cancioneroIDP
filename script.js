@@ -15,7 +15,16 @@ const firebaseConfig = {
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
-
+firebase.firestore().enablePersistence()
+  .catch((err) => {
+      if (err.code == 'failed-precondition') {
+          // Probablemente múltiples pestañas abiertas a la vez
+          console.log('La persistencia falló: múltiples pestañas abiertas');
+      } else if (err.code == 'unimplemented') {
+          // El navegador no soporta esta función
+          console.log('El navegador no soporta persistencia offline');
+      }
+  });
 const db = firebase.firestore();
 const notesCol = db.collection('notes');
 const foldersCol = db.collection('folders');

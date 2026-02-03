@@ -148,13 +148,21 @@ textarea {
 
 /* Mejora de los acordes: Azul vibrante y negrita */
 /* Acordes en Anaranjado llamativo */
+#song-display {
+    font-family: -apple-system, sans-serif;
+    font-size: 1.15rem;
+    color: #333;
+    white-space: pre-wrap; /* Mantiene los saltos de línea */
+}
+
+/* Los acordes en el modo lectura */
 .chord-highlight {
-    color: #ff9500; /* Naranja vibrante */
+    color: #ff9500; /* Naranja */
     font-weight: 800;
-    background-color: rgba(255, 149, 0, 0.1);
-    padding: 1px 3px;
+    font-family: 'Courier New', monospace; /* Para que alineen bien */
+    background: rgba(255, 149, 0, 0.05);
+    padding: 0 2px;
     border-radius: 3px;
-    display: inline-block;
 }
 
 /* Para que la previsualización en la lista no se desordene */
@@ -199,4 +207,20 @@ textarea {
 #note-textarea {
     padding-bottom: 100px; 
     line-height: 1.6;
+}
+.toolbar-top {
+    display: flex;
+    justify-content: space-between; /* Separa el botón de volver de los de acción */
+    align-items: center;
+    padding: 10px 15px;
+    width: 100%;
+    background: #fff;
+    border-bottom: 0.5px solid var(--border);
+    min-height: 60px; /* Altura cómoda para dedos */
+}
+
+.action-group {
+    display: flex;
+    gap: 18px; /* Espacio entre los iconos de la derecha */
+    align-items: center;
 }

@@ -1,6 +1,4 @@
 // 1. Configuración de Firebase (Tus credenciales reales)
-// 1. Configuración de Firebase (Tus credenciales reales)
-// 1. CONFIGURACIÓN (Asegúrate de que no falte ninguna coma)
 const firebaseConfig = {
     apiKey: "AIzaSyBu3yo2VhQCP_VeBX3Y-6fQ-Wii-mFVqg0",
     authDomain: "cancioneroidp.firebaseapp.com",
@@ -56,7 +54,7 @@ function transpose(semitones) {
 
     // 2. LA CLAVE: Añadimos (?![a-z]) al final de la nota base.
     // Esto evita que cambie la "D" de "Desde" o la "A" de "Amor".
-    const chordRegex = /([A-G][b#]?)(?![a-z])(m|maj|dim|aug|sus|add|7|9|11|13|M)*/g;
+    const chordRegex = /\b([A-G][b#]?)(?![a-z])(?![A-Z])(m|maj|dim|aug|sus|add|7|9|11|13|M)*/g;
 
     const newText = text.replace(chordRegex, (fullMatch, baseNote, suffix) => {
         let index = scaleSharp.indexOf(baseNote);

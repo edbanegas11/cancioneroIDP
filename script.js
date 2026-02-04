@@ -73,7 +73,13 @@ function secureAction(actionType) {
         console.error("No se encontró el modal del PIN en el HTML");
     }
 }
-
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('Service Worker registrado con éxito'))
+      .catch(err => console.warn('Fallo al registrar Service Worker', err));
+  });
+}
 // 2. Verifica el código 019283
 function verifyPin() {
     const input = document.getElementById('pin-input').value;

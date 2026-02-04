@@ -87,12 +87,22 @@ body, html {
 /* Editor de Nota */
 .editor {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: white;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  z-index: 100;
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* En lugar de height: 100%, usamos esto: */
+    height: 100vh; 
+    
+    /* ESTA ES LA CLAVE PARA EL IPHONE */
+    padding-top: env(safe-area-inset-top, 20px);
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+    
+    /* Asegura que el contenido no se salga */
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    background-color: white; /* O tu color de fondo */
+    z-index: 9999;
 }
 
 textarea {

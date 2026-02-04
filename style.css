@@ -1,197 +1,69 @@
+/* 1. VARIABLES Y RESET */
 :root {
   --bg: #f2f2f7;
   --card-bg: #ffffff;
   --accent: #007aff;
   --text: #1c1c1e;
   --text-muted: #8e8e93;
-  --safe-area-top: 30px; 
-    --safe-area-bottom: 25px;
 }
 
-body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  margin: 0;
-  display: flex;
-  justify-content: center;
-  padding-top: var(--safe-area-top);
-    padding-bottom: var(--safe-area-bottom);
-    height: 100vh;
+* {
     box-sizing: border-box;
-    overflow: hidden; /* Evita rebotes extraños */
+    touch-action: manipulation; /* Elimina zoom por doble toque */
 }
 
-#root { width: 100%; max-width: 500px; min-height: 100vh; background: var(--card-bg); }
-
-.app-container { padding: 2rem; }
-.header { margin-top: 5px; }
-.bottom-nav { margin-bottom: 10px; }
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-h1 { font-size: 2rem; font-weight: 800; letter-spacing: -1px; margin: 0; }
-body, html {
+html, body {
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100%;
-    overflow-x: hidden; /* Evita que la pantalla se mueva hacia los lados */
+    overflow: hidden; /* Evita rebotes y que la app se "corra" */
+    position: fixed; 
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-#app-container {
-    width: 100%;
-    max-width: 100%; /* Importante para que use todo el ancho al rotar */
-    margin: 0 auto;
+body {
+    display: flex;
+    justify-content: center;
+    /* RESPETA ZONAS SEGURAS (iPhone) O USA RESPALDO (Android) */
+    padding-top: env(safe-area-inset-top, 35px);
+    padding-bottom: env(safe-area-inset-bottom, 60px);
 }
 
-/* Estilo especial para la nota abierta (Modo Atril) */
-.note-view {
-    padding: 20px;
-    font-size: 1.2rem; /* Texto un poco más grande para leer de lejos */
-    line-height: 1.6;
-}
-.btn-add {
-  background: var(--accent);
-  color: white;
-  border: none;
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s;
-}
-
-.btn-add:hover { transform: scale(1.1); }
-
-/* Estilo de la Nota Individual */
-.note-card {
-  padding: 1.5rem;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.note-card:hover { background: #fafafa; }
-
-.note-title { font-weight: 600; margin-bottom: 0.2rem; display: block; }
-.note-date { font-size: 0.8rem; color: var(--text-muted); }
-
-/* Editor de Nota */
-.editor {
-  position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    /* En lugar de height: 100%, usamos esto: */
-    height: 100vh; 
-    
-    /* ESTA ES LA CLAVE PARA EL IPHONE */
-    padding-top: env(safe-area-inset-top, 20px);
-    padding-bottom: env(safe-area-inset-bottom, 20px);
-    
-    /* Asegura que el contenido no se salga */
+/* 2. CONTENEDORES PRINCIPALES */
+#root { 
+    width: 100%; 
+    max-width: 500px; 
+    height: 100%; 
+    background: var(--card-bg); 
     display: flex;
     flex-direction: column;
-    box-sizing: border-box;
-    background-color: white; /* O tu color de fondo */
-    z-index: 9999;
 }
 
-textarea {
-  flex: 1;
-  border: none;
-  outline: none;
-  font-size: 1.1rem;
-  line-height: 1.6;
-  resize: none;
-  margin-top: 1rem;
+.app-container { 
+    padding: 1.5rem; 
+    height: 100%;
+    overflow-y: auto; 
+    -webkit-overflow-scrolling: touch;
 }
 
-.back-btn {
-  color: var(--accent);
-  background: none;
-  border: none;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.btn-action {
-    background: #f0f0f0;
-    color: var(--accent);
-    border: none;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-right: 10px;
-}
-/* Estilo especial para el chip de la carpeta maestra */
-.folder-chip[onclick*="'Notas'"] {
-    border: 1px solid var(--accent);
-    font-weight: 700;
-}
-.folder-chip {
+/* 3. EL EDITOR (CORREGIDO PARA NO CHOCAR) */
+.editor {
+    position: fixed;
+    /* Se encaja entre las barras del sistema */
+    top: env(safe-area-inset-top, 35px);
+    bottom: env(safe-area-inset-bottom, 60px);
+    left: 0;
+    width: 100%;
     display: flex;
-    align-items: center;
-    white-space: nowrap;
-    /* Mantén tus otros estilos de padding, background, etc. */
+    flex-direction: column;
+    background-color: white;
+    z-index: 9999;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
 }
 
-.folder-chip i {
-    transition: opacity 0.2s;
-}
-
-.folder-chip i:hover {
-    opacity: 1;
-    color: #ff3b30; /* Color rojo de iOS al pasar el mouse por la X */
-}
-/* El acorde resaltado */
-.chord {
-    color: #007aff; /* Azul profesional */
-    font-weight: bold;
-    background: rgba(0, 122, 255, 0.1);
-    padding: 0 2px;
-    border-radius: 3px;
-}
-
-/* La línea que contiene acordes suele verse mejor con letra monoespaciada */
-.chord-line {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 0.95rem;
-    color: #444;
-    margin-bottom: -5px; /* Para que esté más cerca de la letra */
-}
-
-.lyric-line {
-    font-family: sans-serif;
-    margin-bottom: 10px;
-}
-/* Para que los espacios de la web original se respeten (VITAL) */
-#note-viewer, .music-line, .plain-line {
-    white-space: pre-wrap; 
-    font-family: 'Roboto Mono', monospace; /* Una letra donde cada carácter mide lo mismo ayuda a alinear */
-}
-
-/* Mejora de los acordes: Azul vibrante y negrita */
-/* Acordes en Anaranjado llamativo */
-/* Estilo para el Visor (Modo Lectura) */
-#song-display {
-    white-space: pre-wrap; /* Respeta los espacios y saltos de línea */
-    font-family: 'Courier New', Courier, monospace; /* Fundamental para que los acordes no se corran */
-}
-
-/* Estilo para el Editor (Modo Escritura) */
 #note-textarea {
     flex: 1;
     width: 100%;
@@ -199,174 +71,97 @@ textarea {
     border: none;
     outline: none;
     font-family: 'Courier New', monospace;
-    font-size: 13px; /* Mismo tamaño que el visor */
-    line-height: 1.4;
-    resize: none;
-    white-space: pre; /* Mismo comportamiento que el visor */
-    overflow-x: auto; /* Scroll horizontal si la línea es muy larga */
-}
-
-/* Opcional: Para que los acordes resaltados no se vean gigantes */
-.chord-highlight {
-    color: #ff9500 !important; /* Naranja vibrante */
-    font-weight: bold;
-    font-family: 'Courier New', monospace;
-}
-
-/* Para que la previsualización en la lista no se desordene */
-.note-preview-content {
-    font-size: 0.85rem;
-    color: #666;
-    line-height: 1.4;
-    max-height: 3em;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
-
-/* Botones de la barra superior */
-.btn-tool {
-    background: #f0f0f5;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 5px 12px;
-    font-weight: bold;
-    color: #333;
-}
-
-.btn-action {
-    background: none;
-    border: none;
-    color: #007aff;
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.btn-danger {
-    background: none;
-    border: none;
-    color: #ff3b30; /* Rojo para la opción de quitar */
-    font-weight: 500;
-    font-size: 0.9rem;
-}
-
-/* Asegurar que el texto no se tape con el botón flotante */
-#note-textarea {
-    padding-bottom: 100px; 
+    font-size: 14px;
     line-height: 1.6;
+    resize: none;
+    white-space: pre;
+    overflow-x: auto;
+    /* Espacio extra abajo para que el teclado no tape el final */
+    padding-bottom: 100px; 
 }
+
+/* 4. BARRAS DE HERRAMIENTAS DEL EDITOR */
 .toolbar-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 15px;
     height: 60px;
     background: #fff;
     border-bottom: 0.5px solid #eee;
-    gap: 5px;
 }
 
-/* Grupo central para el transporte de tonos */
-.transpose-mini {
-    display: flex;
-    align-items: center;
-    background: #f2f2f7;
-    border-radius: 8px;
-    padding: 2px;
-}
-
-.btn-transpose-mini {
-    border: none;
-    background: none;
-    padding: 8px 10px;
-    font-weight: bold;
-    color: #007aff;
-    font-size: 14px;
-}
-
-.transpose-label {
-    font-size: 10px;
-    color: #8e8e93;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-/* Grupo derecho de acciones */
-.action-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
 .toolbar-bottom {
     display: flex;
-    justify-content: space-between; /* Empuja los lados hacia afuera */
+    justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
+    padding: 0 20px;
     background: #f9f9f9;
     border-top: 0.5px solid #ddd;
     height: 60px;
 }
 
-/* Las 'alas' de la barra ocupan el mismo espacio para que el centro no se mueva */
-.toolbar-side {
-    flex: 1; 
+/* 5. ELEMENTOS DE LA LISTA Y CHIPS */
+.note-card {
+    padding: 1.2rem;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
 }
 
-.toolbar-center {
-    flex: 1;
+.folder-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f2f2f7;
+    border-radius: 20px;
+    margin-right: 8px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+/* 6. MODO LECTURA / ATRIBLE */
+#song-display {
+    white-space: pre-wrap;
+    font-family: 'Courier New', monospace;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.chord-highlight {
+    color: #ff9500 !important;
+    font-weight: bold;
+}
+
+/* 7. BOTONES */
+.btn-add {
+    position: fixed;
+    right: 20px;
+    bottom: calc(env(safe-area-inset-bottom, 60px) + 20px);
+    background: var(--accent);
+    color: white;
+    border: none;
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,122,255,0.4);
     display: flex;
-    justify-content: center; /* Centra el botón de deshacer */
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
 }
 
-/* Opcional: Para que el icono no se vea muy pequeño */
-.btn-icon i {
-    width: 22px;
-    height: 22px;
+.back-btn, .btn-action {
+    color: var(--accent);
+    background: none;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
 }
-/* Esto solo afecta cuando el iPhone está acostado */
+
+/* 8. ORIENTACIÓN HORIZONTAL IPHONE */
 @media screen and (orientation: landscape) {
     body {
-        padding-left: env(safe-area-inset-left);   /* Respeta la muesca/notch */
+        padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
     }
-
-    #app-container, .note-view {
-        max-width: 100% !important;
-        width: 100% !important;
-    }
-}
-/* Espaciado para Android */
-body {
-    /* Deja 35px libres arriba para la hora/notificaciones */
-    padding-top: 35px !important; 
-    /* Deja 60px libres abajo para los botones de Android (Atrás/Home) */
-    padding-bottom: 60px !important; 
-    box-sizing: border-box !important;
-    height: 100vh !important;
-}
-
-/* Si tienes una barra de navegación propia abajo, elévala */
-.nav-bar-container, footer, .tabs {
-    bottom: 60px !important;
-}
-/* 1. Fijar el cuerpo para que no rebote */
-html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden; /* Evita el desplazamiento de toda la página */
-    position: fixed; /* Clava la app a la pantalla */
-    
-    /* Variables de zona segura para iPhone (Notch y barra inferior) */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* 2. Permitir scroll SOLO dentro de la lista de canciones */
-#container-principal, .lista-canciones, #editor-view {
-    height: 100%;
-    overflow-y: auto; /* Solo esto se moverá */
-    -webkit-overflow-scrolling: touch; /* Suavidad en iPhone */
 }

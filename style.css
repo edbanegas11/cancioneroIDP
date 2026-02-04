@@ -326,3 +326,17 @@ textarea {
         width: 100% !important;
     }
 }
+/* Espaciado para Android */
+body {
+    /* Deja 35px libres arriba para la hora/notificaciones */
+    padding-top: 35px !important; 
+    /* Deja 60px libres abajo para los botones de Android (Atrás/Home) */
+    padding-bottom: 60px !important; 
+    box-sizing: border-box !important;
+    height: 100vh !important;
+}
+
+/* Si tienes una barra de navegación propia abajo, elévala */
+.nav-bar-container, footer, .tabs {
+    bottom: 60px !important;
+}

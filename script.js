@@ -243,22 +243,30 @@ function addNewFolder() {
     const name = prompt("Nombre de la nueva carpeta privada:");
     if (!name) return;
 
-    let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+    try {
+        let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
 
-    if (name.toUpperCase() === "LISTA DE CANCIONES") {
-        alert("Nombre no permitido");
-        return;
+        if (name.toUpperCase() === "LISTA DE CANCIONES") {
+            alert("Nombre no permitido");
+            return;
+        }
+
+        if (privateFolders.includes(name)) {
+            alert("Esta carpeta ya existe");
+            return;
+        }
+
+        privateFolders.push(name);
+        localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
+
+        // Forzamos el refresco de la interfaz
+        if (typeof renderFolders === 'function') {
+            renderFolders();
+        }
+    } catch (error) {
+        console.error("Error local:", error);
+        alert("Error al crear carpeta en este dispositivo.");
     }
-    
-    if (privateFolders.includes(name)) {
-        alert("Ya existe esta carpeta");
-        return;
-    }
-
-    privateFolders.push(name);
-    localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
-
-    renderFolders(); // Esto refresca la UI usando el LocalStorage
 }
 
 function deleteFolder(folderName) {
@@ -595,7 +603,7 @@ function handleSearch() {
 }
 
 window.onload = () => {
-    // 1. ELIMINAMOS la conexión a foldersCol (Firebase ya no manda en las carpetas)
+   
 
     // 2. Mantenemos solo UNA conexión a las notas
     notesCol.onSnapshot(snap => {

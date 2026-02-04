@@ -34,7 +34,7 @@ const scaleFlat  = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", 
 let useFlats = false;
 let notes = [];
 let folders = [];
-let currentFolder = "Notas";
+let currentFolder = "LISTA DE CANCIONES";
 let currentNoteId = null;
 let searchQuery = "";
 const PIN_CORRECTO = "019283";
@@ -178,20 +178,34 @@ function transpose(semitones) {
 async function createNewNote() {
     try {
         const newNoteRef = await notesCol.add({
-            content: "", 
-            folders: ["Notas"], 
+            content: "Nueva Canción\n", 
+            folders: ["LISTA DE CANCIONES"], 
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+
         currentNoteId = newNoteRef.id;
         
-        document.getElementById('note-textarea').value = "";
+        // Limpiamos el área de texto
+        document.getElementById('note-textarea').value = "Nueva Canción\n";
         updateSongDisplay();
         
+        // Abrimos el visor
         document.getElementById('editor-view').classList.add('active');
-        // Al ser nota nueva, entramos directo a editar sin PIN (opcional) o pidiendo PIN
-        enterEditMode(); 
-    } catch (e) { console.error("Error al crear:", e); }
+
+        // EXPLICACIÓN: En lugar de llamar a enterEditMode(), 
+        // cambiamos los estilos manualmente para entrar directo al editor.
+        document.getElementById('view-mode').style.display = 'none';
+        document.getElementById('edit-mode').style.display = 'flex';
+        
+        setTimeout(() => {
+            document.getElementById('note-textarea').focus();
+        }, 200);
+
+    } catch (e) { 
+        console.error("Error al crear:", e); 
+        alert("No se pudo crear la nota en la nube.");
+    }
 }
 
 function openNote(id) {
@@ -225,26 +239,84 @@ function saveAndClose() {
 
 // --- FUNCIONES DE CARPETAS Y OTROS ---
 
-async function addNewFolder() {
-    const n = prompt("Nombre de la nueva carpeta:");
-    if (!n) return;
-    if (folders.some(f => f.name.toLowerCase() === n.toLowerCase())) return alert("Ya existe");
-    try {
-        await foldersCol.add({ name: n, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-    } catch (e) { console.error(e); }
+function addNewFolder() {
+    const name = prompt("Nombre de la nueva carpeta privada:");
+    if (!name) return;
+
+    // 1. Traemos las carpetas que ya existen en el teléfono
+    let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+
+    // 2. Verificamos que no exista ya o que no sea el nombre reservado
+    if (name.toUpperCase() === "LISTA DE CANCIONES") {
+        alert("Ese nombre no está permitido.");
+        return;
+    }
+    
+    if (privateFolders.includes(name)) {
+        alert("Esta carpeta ya existe.");
+        return;
+    }
+
+    // 3. La agregamos al array y guardamos en el teléfono
+    privateFolders.push(name);
+    localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
+
+    // 4. Refrescamos la barra de carpetas para que aparezca la nueva
+    renderFolders();
+    console.log("Carpeta privada creada:", name);
 }
 
-async function deleteFolder(id, name) {
-    if (name === "Notas") return;
-    if (confirm(`¿Eliminar carpeta "${name}"? Las notas seguirán en "Notas".`)) {
-        await foldersCol.doc(id).delete();
+function deleteFolder(name) {
+    // 1. Evitar borrar la carpeta raíz
+    if (name === "LISTA DE CANCIONES") return;
+
+    if (confirm(`¿Eliminar carpeta "${name}" de tu teléfono? Las notas no se borrarán de la lista principal.`)) {
+        
+        // 2. Cargar carpetas privadas y filtrar (quitar la que queremos borrar)
+        let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+        privateFolders = privateFolders.filter(f => f !== name);
+        
+        // 3. Guardar la nueva lista en el teléfono
+        localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
+
+        // 4. Limpiar las asignaciones (para que las notas ya no crean que pertenecen a esa carpeta)
+        let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+        for (let noteId in localAssignments) {
+            if (localAssignments[noteId] === name) {
+                delete localAssignments[noteId];
+            }
+        }
+        localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
+
+        // 5. Resetear la vista a la carpeta principal
+        currentFolder = "LISTA DE CANCIONES";
+        
+        // 6. Refrescar la pantalla
+        renderFolders();
+        renderNotes();
+        
+        console.log("Carpeta local eliminada correctamente");
     }
 }
 
 function selectFolder(name) {
     currentFolder = name;
+    
+    if (name === 'LISTA DE CANCIONES') {
+        // Modo Nube: Usa los datos de Firebase
+        renderNotes(notes); 
+    } else {
+        // Modo Offline: Filtra las notas guardadas en el teléfono
+        let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+        let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+        
+        // Buscamos qué notas pertenecen a esta carpeta local
+        let filteredIds = Object.keys(localAssignments).filter(id => localAssignments[id] === name);
+        let folderNotes = filteredIds.map(id => offlineNotes[id]).filter(n => n !== undefined);
+        
+        renderNotes(folderNotes);
+    }
     renderFolders();
-    renderNotes();
 }
 
 function openPicker() {
@@ -278,15 +350,23 @@ function closePicker() { document.getElementById('folder-picker').style.display 
 function renderFolderPicker() {
     const container = document.getElementById('picker-list');
     if (!container || !currentNoteId) return;
-    const note = notes.find(n => n.id === currentNoteId);
-    if (!note) return;
 
-    container.innerHTML = folders.map(f => {
-        const isLinked = note.folders && note.folders.includes(f.name);
+    // LEER SOLO DEL TELÉFONO
+    let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+
+    // Si el array está vacío, mostrar mensaje
+    if (privateFolders.length === 0) {
+        container.innerHTML = '<p style="padding:20px; color:gray;">Crea una carpeta primero</p>';
+        return;
+    }
+
+    container.innerHTML = privateFolders.map(folderName => {
+        const isLinked = localAssignments[currentNoteId] === folderName;
         return `
-            <div class="picker-item" onclick="toggleFolderLink('${f.name}')">
-                <span style="color:#333; font-weight:500;">${f.name}</span>
-                <span style="color:#007aff; font-weight:bold; font-size:1.2rem;">${isLinked ? '✓' : ''}</span>
+            <div class="picker-item" onclick="toggleFolderLink('${folderName}')" style="display:flex; justify-content:space-between; padding:15px; border-bottom:1px solid #eee;">
+                <span>${folderName}</span>
+                <span style="color:var(--folder-accent); font-weight:bold;">${isLinked ? '✓' : ''}</span>
             </div>`;
     }).join('');
 }
@@ -317,21 +397,30 @@ async function exitEditMode() {
         }
     }
 }
-async function toggleFolderLink(folderName) {
+function toggleFolderLink(folderName) {
     if (!currentNoteId) return;
-    const noteRef = notesCol.doc(currentNoteId);
-    const note = notes.find(n => n.id === currentNoteId);
-    const isLinked = note.folders && note.folders.includes(folderName);
-
-    try {
-        if (isLinked) {
-            if (folderName === "Notas") return; 
-            await noteRef.update({ folders: firebase.firestore.FieldValue.arrayRemove(folderName) });
-        } else {
-            await noteRef.update({ folders: firebase.firestore.FieldValue.arrayUnion(folderName) });
+    
+    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    
+    // Si ya estaba en esta carpeta, la quitamos (Toggle)
+    if (localAssignments[currentNoteId] === folderName) {
+        delete localAssignments[currentNoteId];
+        console.log("Nota quitada de la carpeta local");
+    } else {
+        // La asignamos a la carpeta
+        localAssignments[currentNoteId] = folderName;
+        
+        // BUSCAR LA NOTA PARA COPIARLA OFFLINE
+        const noteToCopy = notes.find(n => n.id === currentNoteId);
+        if (noteToCopy) {
+            saveNoteLocally(noteToCopy); // Aquí se crea la copia física
         }
-        renderFolderPicker();
-    } catch (e) { console.error("Error vinculando:", e); }
+    }
+
+    localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
+    
+    renderFolderPicker(); // Actualiza los checks (círculos)
+    renderFolders();      // Actualiza los contadores en la barra naranja
 }
 
 async function removeNoteFromCurrentFolder() {
@@ -340,7 +429,7 @@ async function removeNoteFromCurrentFolder() {
         return;
     }
 
-    const mensaje = currentFolder === "Notas" 
+    const mensaje = currentFolder === "LISTA DE CANCIONES" 
         ? "¿Eliminar esta nota permanentemente?" 
         : `¿Quitar de la carpeta "${currentFolder}"?`;
 
@@ -349,7 +438,7 @@ async function removeNoteFromCurrentFolder() {
             // Referencia directa al documento
             const noteRef = notesCol.doc(currentNoteId);
 
-            if (currentFolder === "Notas") {
+            if (currentFolder === "LISTA DE CANCIONES") {
                 // BORRADO TOTAL
                 await noteRef.delete();
             } else {
@@ -377,20 +466,39 @@ async function removeNoteFromCurrentFolder() {
 function renderFolders() {
     const bar = document.getElementById('folder-bar');
     if (!bar) return;
-    bar.innerHTML = folders.map(f => {
+
+    // 1. Cargamos lo que hay en el teléfono
+    const privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+    const localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    const offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+
+    // 2. Creamos la lista combinada: Principal + Tus carpetas
+    const allFolders = [{ name: 'LISTA DE CANCIONES' }, ...privateFolders.map(name => ({ name }))];
+
+    bar.innerHTML = allFolders.map(f => {
         const isSelected = f.name === currentFolder;
-        const count = notes.filter(n => n.folders && n.folders.includes(f.name)).length;
+        
+        let count = 0;
+        if (f.name === 'LISTA DE CANCIONES') {
+            // Cuenta todo lo que viene de Firebase
+            count = notes.length;
+        } else {
+            // Cuenta solo los IDs asignados a esta carpeta en el teléfono
+            count = Object.values(localAssignments).filter(folderName => folderName === f.name).length;
+        }
+
         return `
             <div class="folder-chip ${isSelected ? 'active' : ''}">
                 <span onclick="selectFolder('${f.name}')" style="cursor:pointer;">
-                    ${f.name} <span class="folder-count">${count}</span>
+                    ${f.name} <span class="folder-count">(${count})</span>
                 </span>
-                ${f.name !== 'Notas' ? `
-                    <button onclick="deleteFolder('${f.id}', '${f.name}')" style="background:none; border:none; margin-left:8px;">
+                ${f.name !== 'LISTA DE CANCIONES' ? `
+                    <button onclick="deleteFolder('${f.name}')" style="background:none; border:none; margin-left:8px; cursor:pointer; color:inherit;">
                         <i data-lucide="x" style="width:14px;"></i>
                     </button>` : ''}
             </div>`;
     }).join('');
+
     if (window.lucide) lucide.createIcons();
 }
 function openEditMode() {
@@ -415,16 +523,39 @@ function openEditMode() {
 function renderNotes() {
     const list = document.getElementById('notes-list');
     if (!list) return;
-    const filtered = notes.filter(n => {
-        const inFolder = (currentFolder === "Notas") || (n.folders && n.folders.includes(currentFolder));
-        return inFolder && (n.content || "").toLowerCase().includes(searchQuery);
-    }).sort((a,b) => (a.content||"").localeCompare(b.content||""));
 
+    // 1. CARGAR DATOS LOCALES
+    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+    let searchQuery = document.getElementById('search-input')?.value.toLowerCase() || "";
+
+    let filtered = [];
+
+    // 2. DECIDIR DE DÓNDE SACAR LAS NOTAS
+    if (currentFolder === "LISTA DE CANCIONES") {
+        // MODO NUBE: Usar la variable 'notes' de Firebase
+        filtered = notes;
+    } else {
+        // MODO LOCAL: Filtrar las que el usuario movió a esta carpeta específica
+        const idsInFolder = Object.keys(localAssignments).filter(id => localAssignments[id] === currentFolder);
+        filtered = idsInFolder.map(id => offlineNotes[id]).filter(n => n != null);
+    }
+
+    // 3. APLICAR BUSCADOR (Si hay texto en el input de búsqueda)
+    if (searchQuery) {
+        filtered = filtered.filter(n => (n.content || "").toLowerCase().includes(searchQuery));
+    }
+
+    // 4. ORDENAR ALFABÉTICAMENTE
+    filtered.sort((a, b) => (a.content || "").localeCompare(b.content || ""));
+
+    // 5. RENDERIZAR (Dibujar en pantalla)
     if (filtered.length === 0) {
-        list.innerHTML = `<div style="text-align:center; color:gray; margin-top:2rem;">No hay notas</div>`;
+        list.innerHTML = `<div style="text-align:center; color:gray; margin-top:2rem;">No hay canciones aquí</div>`;
         return;
     }
 
+    // Agrupar por letra (A, B, C...)
     const groups = {};
     filtered.forEach(n => {
         const char = n.content ? n.content.trim()[0].toUpperCase() : "N";
@@ -444,6 +575,24 @@ function renderNotes() {
                 </div>`;
         });
     });
+}
+
+// Función para guardar una copia local
+function saveNoteLocally(note) {
+    if (!note || !note.id) return;
+
+    let localNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+    
+    // Guardamos una copia limpia
+    localNotes[note.id] = {
+        id: note.id,
+        content: note.content || "",
+        // Convertimos el timestamp de Firebase a milisegundos para poder comparar luego
+        updatedAt: note.updatedAt && note.updatedAt.toMillis ? note.updatedAt.toMillis() : Date.now()
+    };
+    
+    localStorage.setItem('offlineNotes', JSON.stringify(localNotes));
+    console.log(`Nota "${note.id}" guardada para uso offline.`);
 }
 // Ejemplo de cómo cargar notas priorizando el almacenamiento local
 function loadNotes() {
@@ -469,8 +618,8 @@ function handleSearch() {
 
 window.onload = () => {
     foldersCol.orderBy('name').onSnapshot(snap => {
-        const fbFolders = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name })).filter(f => f.name !== "Notas");
-        folders = [{ id: 'default', name: 'Notas' }, ...fbFolders];
+        const fbFolders = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name })).filter(f => f.name !== "LISTA DE CANCIONES");
+        folders = [{ id: 'default', name: 'LISTA DE CANCIONES' }, ...fbFolders];
         renderFolders();
     });
 
@@ -479,6 +628,31 @@ window.onload = () => {
         renderNotes();
         renderFolders();
     });
+  notesCol.onSnapshot(snapshot => {
+    notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    // AUTO-ACTUALIZAR NOTAS LOCALES
+    let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    let changed = false;
+
+    notes.forEach(cloudNote => {
+        // Si la nota está guardada localmente en alguna carpeta...
+        if (offlineNotes[cloudNote.id]) {
+            // Y si la versión de la nube es más nueva que la del teléfono...
+            if (cloudNote.content !== offlineNotes[cloudNote.id].content) {
+                offlineNotes[cloudNote.id].content = cloudNote.content;
+                changed = true;
+                console.log("Nota actualizada localmente: " + cloudNote.id);
+            }
+        }
+    });
+
+    if (changed) localStorage.setItem('offlineNotes', JSON.stringify(offlineNotes));
+    
+    renderFolders();
+    renderNotes(currentFolder === 'LISTA DE CANCIONES' ? notes : null); 
+});
     
     // Escuchar Enter en el PIN
     document.getElementById('pin-input')?.addEventListener('keypress', (e) => {
@@ -503,3 +677,5 @@ window.openPicker = openPicker;
 window.closePicker = closePicker;
 window.toggleFolderLink = toggleFolderLink;
 window.removeNoteFromCurrentFolder = removeNoteFromCurrentFolder;
+window.saveNoteLocally = saveNoteLocally;
+window.renderFolderPicker = renderFolderPicker;

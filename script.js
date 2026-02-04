@@ -13,9 +13,16 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-firebase.firestore().enablePersistence().catch((err) => {
-    console.log('Error de persistencia:', err.code);
-});
+firebase.firestore().enablePersistence()
+  .catch((err) => {
+      if (err.code == 'failed-precondition') {
+          // Probablemente varias pestañas abiertas a la vez
+          console.log('Persistencia falló: Multi-pestaña');
+      } else if (err.code == 'unimplemented') {
+          // El navegador no lo soporta (muy raro en iPhone/Chrome moderno)
+          console.log('Persistencia no disponible');
+      }
+  });
 
 const db = firebase.firestore();
 const notesCol = db.collection('notes');
@@ -46,7 +53,6 @@ function enterEditMode() {
         setTimeout(() => input.focus(), 100);
     }
 }
-
 let pendingAction = null; 
 
 // 1. Inicia el proceso de seguridad
@@ -118,14 +124,17 @@ function updateSongDisplay() {
     const text = document.getElementById('note-textarea').value;
     const display = document.getElementById('song-display');
     if (!display) return;
-    
-    // Esta versión acepta el acorde si le sigue un espacio O el fin de la línea (\n o $)
-const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus4|sus2|sus|add9|7|2|4|5|M|13|9|11)?(?![a-zA-Z])/g;
+
+    // Esta Regex ahora es más permisiva con números pero estricta con minúsculas
+    const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus4|sus2|sus|add9|13|11|9|7|5|4|2|M)?(?![a-záéíóú])(?![A-Z])/g;
 
     display.innerHTML = text.split('\n').map(line => {
+        // Simplemente resaltamos acordes sin importar si hay // o no
         const highlighted = line.replace(chordRegex, match => {
             return `<span class="chord-highlight">${match}</span>`;
         });
+
+        // Mantenemos la estructura de línea exacta
         return `<div>${highlighted || '&nbsp;'}</div>`;
     }).join('');
 }
@@ -134,51 +143,32 @@ const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus4|sus2|s
 
 function transpose(semitones) {
     const textarea = document.getElementById('note-textarea');
-    if (!textarea) return;
+    const songDisplay = document.getElementById('song-display');
+    if (!textarea || !songDisplay) return;
 
     let text = textarea.value;
-    
-    // Detectar si usamos sostenidos o bemoles basado en el texto actual
-    if (text.includes('b')) useFlats = true;
-    else if (text.includes('#')) useFlats = false;
+    const scaleSharp = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const scaleFlat = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
-    // REGEX MAESTRA: 
-    // Grupo 1: La nota base ([A-G][#b]?)
-    // Grupo 2: El sufijo (m7, maj7, etc.)
-    const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus4|sus2|sus|add9|7|2|4|5|M|13|9|11)?(?![a-zA-Z])/g;
+    const useFlats = /\b[A-G]b\b|\b[A-G]b(m|7|maj)/.test(text);
+    const chordRegex = /\b([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus\d?|add\d?|7|9|11|13|5|M|b5)?(?![a-zñóáéíú])/g;
 
     const newText = text.replace(chordRegex, (fullMatch, baseNote, suffix) => {
-        // Buscamos la posición de la nota en las escalas
         let index = scaleSharp.indexOf(baseNote);
         if (index === -1) index = scaleFlat.indexOf(baseNote);
-        
-        // Si no es una nota válida (un error de detección), devolvemos el texto original
         if (index === -1) return fullMatch;
 
-        // Calculamos el nuevo índice (0-11)
-        let newIndex = (index + semitones) % 12;
-        if (newIndex < 0) newIndex += 12;
-        
-        // Obtenemos la nueva nota base
+        let newIndex = (index + semitones + 12) % 12;
         const newBaseNote = useFlats ? scaleFlat[newIndex] : scaleSharp[newIndex];
-        
-        // Devolvemos la nueva nota + el sufijo original (ej: D# + m7)
         return newBaseNote + (suffix || "");
     });
 
-    // Actualizamos el textarea y la vista
+    // IMPORTANTE: Solo actualizamos lo que se VE, no lo que está guardado en Firebase
     textarea.value = newText;
     updateSongDisplay(); 
     
-    // Guardar automáticamente en Firebase para no perder el cambio de tono
-    if (currentNoteId) {
-        notesCol.doc(currentNoteId).update({ 
-            content: newText,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-    }
+    // NOTA: Aquí NO hay llamadas a Firebase. El cambio es 100% temporal.
 }
-
 async function createNewNote() {
     try {
         const newNoteRef = await notesCol.add({
@@ -211,17 +201,20 @@ function openNote(id) {
     document.getElementById('edit-mode').style.display = 'none';
 }
 
-async function saveAndClose() {
-    try {
-        const txt = document.getElementById('note-textarea').value;
-        if (currentNoteId) {
-            await notesCol.doc(currentNoteId).update({ 
-                content: txt,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        }
-        document.getElementById('editor-view').classList.remove('active');
-    } catch (e) { console.error("Error al guardar:", e); }
+function saveAndClose() {
+    // 1. Antes de cerrar, recuperamos la nota original de nuestro array local
+    // Esto descarta cualquier cambio de tono que hayamos hecho en el textarea
+    const originalNote = notes.find(n => n.id === currentNoteId);
+    if (originalNote) {
+        document.getElementById('note-textarea').value = originalNote.content;
+        updateSongDisplay();
+    }
+
+    // 2. Cerramos el editor/visor
+    document.getElementById('editor-view').classList.remove('active');
+    
+    // 3. Limpiamos la variable de ID actual para seguridad
+    currentNoteId = null;
 }
 
 // --- FUNCIONES DE CARPETAS Y OTROS ---
@@ -255,7 +248,25 @@ function openPicker() {
         renderFolderPicker();
     }
 }
+function undoText() {
+    const textarea = document.getElementById('note-textarea');
+    if (!textarea) return;
 
+    // 1. Ponemos el foco en el texto (Indispensable para iOS)
+    textarea.focus();
+
+    // 2. Ejecutamos el comando de deshacer del sistema
+    try {
+        document.execCommand('undo', false, null);
+    } catch (e) {
+        console.warn("El navegador no soporta execCommand, usando fallback");
+    }
+
+    // 3. Actualizamos el visor para que el cambio se vea reflejado
+    if (typeof updateSongDisplay === "function") {
+        updateSongDisplay();
+    }
+}
 function closePicker() { document.getElementById('folder-picker').style.display = 'none'; }
 
 function renderFolderPicker() {
@@ -273,7 +284,33 @@ function renderFolderPicker() {
             </div>`;
     }).join('');
 }
+async function exitEditMode() {
+    const newContent = document.getElementById('note-textarea').value;
 
+    if (currentNoteId) {
+        try {
+            // Guardar en Firebase
+            await notesCol.doc(currentNoteId).update({
+                content: newContent,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Actualizar localmente
+            const note = notes.find(n => n.id === currentNoteId);
+            if (note) note.content = newContent;
+
+            // Refrescar el visor de la canción
+            updateSongDisplay();
+            
+            // Volver a la vista normal
+            document.getElementById('edit-mode').style.display = 'none';
+            document.getElementById('view-mode').style.display = 'block';
+        } catch (error) {
+            console.error("Error al guardar:", error);
+            alert("No se pudo guardar la nota.");
+        }
+    }
+}
 async function toggleFolderLink(folderName) {
     if (!currentNoteId) return;
     const noteRef = notesCol.doc(currentNoteId);
@@ -350,7 +387,25 @@ function renderFolders() {
     }).join('');
     if (window.lucide) lucide.createIcons();
 }
+function openEditMode() {
+    const note = notes.find(n => n.id === currentNoteId);
+    if (!note) return;
 
+    // 1. Llenamos el textarea con el texto de la nota
+    const textarea = document.getElementById('note-textarea');
+    textarea.value = note.content || "";
+
+    // 2. Cambiamos de pantalla
+    document.getElementById('view-mode').style.display = 'none';
+    document.getElementById('edit-mode').style.display = 'block';
+
+    // 3. Opcional: Ajustar altura del textarea automáticamente
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+    
+    // 4. Inicializar iconos de Lucide (por el botón de deshacer)
+    if (window.lucide) lucide.createIcons();
+}
 function renderNotes() {
     const list = document.getElementById('notes-list');
     if (!list) return;
@@ -384,7 +439,20 @@ function renderNotes() {
         });
     });
 }
-
+// Ejemplo de cómo cargar notas priorizando el almacenamiento local
+function loadNotes() {
+    // Intentar cargar con la configuración de caché
+    notesCol.orderBy('title').onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
+        const source = snapshot.metadata.fromCache ? "local" : "servidor";
+        console.log("Cargando datos desde: " + source);
+        
+        notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderFolders();
+        renderNotes();
+    }, (error) => {
+        console.error("Error al cargar notas:", error);
+    });
+}
 function handleSearch() {
     const input = document.getElementById('search-input');
     if (input) {

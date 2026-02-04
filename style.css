@@ -4,6 +4,8 @@
   --accent: #007aff;
   --text: #1c1c1e;
   --text-muted: #8e8e93;
+  --safe-area-top: 30px; 
+    --safe-area-bottom: 25px;
 }
 
 body {
@@ -13,12 +15,18 @@ body {
   margin: 0;
   display: flex;
   justify-content: center;
+  padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+    height: 100vh;
+    box-sizing: border-box;
+    overflow: hidden; /* Evita rebotes extraños */
 }
 
 #root { width: 100%; max-width: 500px; min-height: 100vh; background: var(--card-bg); }
 
 .app-container { padding: 2rem; }
-
+.header { margin-top: 5px; }
+.bottom-nav { margin-bottom: 10px; }
 header {
   display: flex;
   justify-content: space-between;

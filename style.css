@@ -148,21 +148,32 @@ textarea {
 
 /* Mejora de los acordes: Azul vibrante y negrita */
 /* Acordes en Anaranjado llamativo */
+/* Estilo para el Visor (Modo Lectura) */
 #song-display {
-    font-family: -apple-system, sans-serif;
-    font-size: 1.15rem;
-    color: #333;
-    white-space: pre-wrap; /* Mantiene los saltos de línea */
+    white-space: pre-wrap; /* Respeta los espacios y saltos de línea */
+    font-family: 'Courier New', Courier, monospace; /* Fundamental para que los acordes no se corran */
 }
 
-/* Los acordes en el modo lectura */
+/* Estilo para el Editor (Modo Escritura) */
+#note-textarea {
+    flex: 1;
+    width: 100%;
+    padding: 20px;
+    border: none;
+    outline: none;
+    font-family: 'Courier New', monospace;
+    font-size: 13px; /* Mismo tamaño que el visor */
+    line-height: 1.4;
+    resize: none;
+    white-space: pre; /* Mismo comportamiento que el visor */
+    overflow-x: auto; /* Scroll horizontal si la línea es muy larga */
+}
+
+/* Opcional: Para que los acordes resaltados no se vean gigantes */
 .chord-highlight {
-    color: #ff9500; /* Naranja */
-    font-weight: 800;
-    font-family: 'Courier New', monospace; /* Para que alineen bien */
-    background: rgba(255, 149, 0, 0.05);
-    padding: 0 2px;
-    border-radius: 3px;
+    color: #ff9500 !important; /* Naranja vibrante */
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
 }
 
 /* Para que la previsualización en la lista no se desordene */
@@ -210,17 +221,69 @@ textarea {
 }
 .toolbar-top {
     display: flex;
-    justify-content: space-between; /* Separa el botón de volver de los de acción */
+    justify-content: space-between;
     align-items: center;
-    padding: 10px 15px;
-    width: 100%;
+    padding: 0 10px;
+    height: 60px;
     background: #fff;
-    border-bottom: 0.5px solid var(--border);
-    min-height: 60px; /* Altura cómoda para dedos */
+    border-bottom: 0.5px solid #eee;
+    gap: 5px;
 }
 
+/* Grupo central para el transporte de tonos */
+.transpose-mini {
+    display: flex;
+    align-items: center;
+    background: #f2f2f7;
+    border-radius: 8px;
+    padding: 2px;
+}
+
+.btn-transpose-mini {
+    border: none;
+    background: none;
+    padding: 8px 10px;
+    font-weight: bold;
+    color: #007aff;
+    font-size: 14px;
+}
+
+.transpose-label {
+    font-size: 10px;
+    color: #8e8e93;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+/* Grupo derecho de acciones */
 .action-group {
     display: flex;
-    gap: 18px; /* Espacio entre los iconos de la derecha */
     align-items: center;
+    gap: 8px;
+}
+.toolbar-bottom {
+    display: flex;
+    justify-content: space-between; /* Empuja los lados hacia afuera */
+    align-items: center;
+    padding: 10px 20px;
+    background: #f9f9f9;
+    border-top: 0.5px solid #ddd;
+    height: 60px;
+}
+
+/* Las 'alas' de la barra ocupan el mismo espacio para que el centro no se mueva */
+.toolbar-side {
+    flex: 1; 
+}
+
+.toolbar-center {
+    flex: 1;
+    display: flex;
+    justify-content: center; /* Centra el botón de deshacer */
+}
+
+/* Opcional: Para que el icono no se vea muy pequeño */
+.btn-icon i {
+    width: 22px;
+    height: 22px;
 }

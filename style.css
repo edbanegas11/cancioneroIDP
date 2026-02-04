@@ -52,16 +52,18 @@ body {
 /* 3. EL EDITOR (CORREGIDO PARA NO CHOCAR) */
 .editor {
     position: fixed;
-    /* Se encaja entre las barras del sistema */
-    top: env(safe-area-inset-top, 35px);
-    bottom: env(safe-area-inset-bottom, 60px);
+    /* Forzamos a que empiece desde el borde físico superior */
+    top: 0; 
+    bottom: 0;
     left: 0;
     width: 100%;
     display: flex;
     flex-direction: column;
     background-color: white;
     z-index: 9999;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    /* Quitamos el padding-top de aquí porque ya se lo pusimos a la toolbar-top */
+    padding-top: 0; 
+    padding-bottom: env(safe-area-inset-bottom, 20px);
 }
 
 #note-textarea {
@@ -86,9 +88,13 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 0 15px;
-    height: 60px;
+    /* Esto añade el espacio necesario para que la hora no tape los botones */
+    padding-top: env(safe-area-inset-top, 20px); 
+    /* Ajustamos el alto para que sea la suma del espacio seguro + 60px de barra */
+    height: calc(60px + env(safe-area-inset-top, 0px)); 
     background: #fff;
     border-bottom: 0.5px solid #eee;
+    box-sizing: border-box;
 }
 
 .toolbar-bottom {

@@ -26,7 +26,7 @@ firebase.firestore().enablePersistence()
 
 const db = firebase.firestore();
 const notesCol = db.collection('notes');
-const foldersCol = db.collection('folders');
+
 
 // 2. Variables de Estado
 const scaleSharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];

@@ -617,49 +617,41 @@ function handleSearch() {
 }
 
 window.onload = () => {
-    foldersCol.orderBy('name').onSnapshot(snap => {
-        const fbFolders = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name })).filter(f => f.name !== "LISTA DE CANCIONES");
-        folders = [{ id: 'default', name: 'LISTA DE CANCIONES' }, ...fbFolders];
-        renderFolders();
-    });
+    // 1. ELIMINAMOS la conexión a foldersCol (Firebase ya no manda en las carpetas)
 
+    // 2. Mantenemos solo UNA conexión a las notas
     notesCol.onSnapshot(snap => {
         notes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderNotes();
-        renderFolders();
-    });
-  notesCol.onSnapshot(snapshot => {
-    notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    
-    // AUTO-ACTUALIZAR NOTAS LOCALES
-    let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
-    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-    let changed = false;
+        
+        // --- SINCRONIZACIÓN AUTOMÁTICA OFFLINE ---
+        let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+        let changed = false;
 
-    notes.forEach(cloudNote => {
-        // Si la nota está guardada localmente en alguna carpeta...
-        if (offlineNotes[cloudNote.id]) {
-            // Y si la versión de la nube es más nueva que la del teléfono...
-            if (cloudNote.content !== offlineNotes[cloudNote.id].content) {
-                offlineNotes[cloudNote.id].content = cloudNote.content;
-                changed = true;
-                console.log("Nota actualizada localmente: " + cloudNote.id);
+        notes.forEach(cloudNote => {
+            if (offlineNotes[cloudNote.id]) {
+                // Si el contenido cambió en la nube, actualizamos la copia local
+                if (cloudNote.content !== offlineNotes[cloudNote.id].content) {
+                    offlineNotes[cloudNote.id].content = cloudNote.content;
+                    changed = true;
+                    console.log("Sincronizado cambio de nube a copia local: " + cloudNote.id);
+                }
             }
-        }
-    });
+        });
 
-    if (changed) localStorage.setItem('offlineNotes', JSON.stringify(offlineNotes));
+        if (changed) {
+            localStorage.setItem('offlineNotes', JSON.stringify(offlineNotes));
+        }
+        
+        // Refrescamos la interfaz
+        renderFolders();
+        renderNotes(); // Esta función ahora ya sabe decidir si usa 'notes' o 'offlineNotes'
+    });
     
-    renderFolders();
-    renderNotes(currentFolder === 'LISTA DE CANCIONES' ? notes : null); 
-});
-    
-    // Escuchar Enter en el PIN
+    // Escuchar Enter en el PIN (Recuerda que tu código es 019283 según tus notas)
     document.getElementById('pin-input')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') verifyPin();
     });
 };
-
 // --- EXPORTACIÓN ---
 window.enterEditMode = enterEditMode;
 window.verifyPin = verifyPin;

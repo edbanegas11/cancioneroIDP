@@ -340,3 +340,23 @@ body {
 .nav-bar-container, footer, .tabs {
     bottom: 60px !important;
 }
+/* 1. Fijar el cuerpo para que no rebote */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Evita el desplazamiento de toda la página */
+    position: fixed; /* Clava la app a la pantalla */
+    
+    /* Variables de zona segura para iPhone (Notch y barra inferior) */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 2. Permitir scroll SOLO dentro de la lista de canciones */
+#container-principal, .lista-canciones, #editor-view {
+    height: 100%;
+    overflow-y: auto; /* Solo esto se moverá */
+    -webkit-overflow-scrolling: touch; /* Suavidad en iPhone */
+}

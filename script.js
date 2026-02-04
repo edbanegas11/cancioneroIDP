@@ -243,60 +243,40 @@ function addNewFolder() {
     const name = prompt("Nombre de la nueva carpeta privada:");
     if (!name) return;
 
-    // 1. Traemos las carpetas que ya existen en el teléfono
     let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
 
-    // 2. Verificamos que no exista ya o que no sea el nombre reservado
     if (name.toUpperCase() === "LISTA DE CANCIONES") {
-        alert("Ese nombre no está permitido.");
+        alert("Nombre no permitido");
         return;
     }
     
     if (privateFolders.includes(name)) {
-        alert("Esta carpeta ya existe.");
+        alert("Ya existe esta carpeta");
         return;
     }
 
-    // 3. La agregamos al array y guardamos en el teléfono
     privateFolders.push(name);
     localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
 
-    // 4. Refrescamos la barra de carpetas para que aparezca la nueva
-    renderFolders();
-    console.log("Carpeta privada creada:", name);
+    renderFolders(); // Esto refresca la UI usando el LocalStorage
 }
 
-function deleteFolder(name) {
-    // 1. Evitar borrar la carpeta raíz
-    if (name === "LISTA DE CANCIONES") return;
+function deleteFolder(folderName) {
+    if (!confirm(`¿Borrar carpeta local "${folderName}"?`)) return;
 
-    if (confirm(`¿Eliminar carpeta "${name}" de tu teléfono? Las notas no se borrarán de la lista principal.`)) {
-        
-        // 2. Cargar carpetas privadas y filtrar (quitar la que queremos borrar)
-        let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
-        privateFolders = privateFolders.filter(f => f !== name);
-        
-        // 3. Guardar la nueva lista en el teléfono
-        localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
+    let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+    privateFolders = privateFolders.filter(f => f !== folderName);
+    localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
 
-        // 4. Limpiar las asignaciones (para que las notas ya no crean que pertenecen a esa carpeta)
-        let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-        for (let noteId in localAssignments) {
-            if (localAssignments[noteId] === name) {
-                delete localAssignments[noteId];
-            }
-        }
-        localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
-
-        // 5. Resetear la vista a la carpeta principal
-        currentFolder = "LISTA DE CANCIONES";
-        
-        // 6. Refrescar la pantalla
-        renderFolders();
-        renderNotes();
-        
-        console.log("Carpeta local eliminada correctamente");
+    // También limpiamos las asignaciones de notas en esa carpeta
+    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    for (let id in localAssignments) {
+        if (localAssignments[id] === folderName) delete localAssignments[id];
     }
+    localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
+
+    renderFolders();
+    selectFolder('LISTA DE CANCIONES');
 }
 
 function selectFolder(name) {
@@ -424,45 +404,43 @@ function toggleFolderLink(folderName) {
 }
 
 async function removeNoteFromCurrentFolder() {
-    if (!currentNoteId) {
-        console.error("No hay un ID de nota seleccionado");
-        return;
-    }
+    if (!currentNoteId) return;
 
     const mensaje = currentFolder === "LISTA DE CANCIONES" 
-        ? "¿Eliminar esta nota permanentemente?" 
-        : `¿Quitar de la carpeta "${currentFolder}"?`;
+        ? "¿Eliminar esta canción permanentemente para TODOS?" 
+        : `¿Quitar de mi carpeta privada "${currentFolder}"?`;
 
     if (confirm(mensaje)) {
         try {
-            // Referencia directa al documento
-            const noteRef = notesCol.doc(currentNoteId);
-
             if (currentFolder === "LISTA DE CANCIONES") {
-                // BORRADO TOTAL
-                await noteRef.delete();
+                // 1. BORRADO TOTAL DE LA NUBE (Compartido)
+                await notesCol.doc(currentNoteId).delete();
             } else {
-                // SOLO QUITAR DE CARPETA
-                await noteRef.update({
-                    folders: firebase.firestore.FieldValue.arrayRemove(currentFolder)
-                });
+                // 2. SOLO QUITAR DE CARPETA LOCAL (Privado del teléfono)
+                // En lugar de update en Firebase, borramos la asignación local
+                let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+                
+                if (localAssignments[currentNoteId]) {
+                    delete localAssignments[currentNoteId];
+                    localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
+                }
+                console.log("Nota quitada de la carpeta localmente.");
             }
 
-            // IMPORTANTE: Primero cerramos la vista, luego limpiamos el ID
+            // Cerrar editor y limpiar
             document.getElementById('editor-view').classList.remove('active');
+            setTimeout(() => { currentNoteId = null; }, 500);
             
-            // Esperamos un poco antes de limpiar el ID para evitar conflictos con otras funciones
-            setTimeout(() => {
-                currentNoteId = null;
-            }, 500);
+            // Refrescar para ver los cambios
+            renderFolders();
+            renderNotes();
 
         } catch (e) {
-            console.error("Error al borrar/quitar:", e);
-            alert("No se pudo completar la acción. La nota tal vez ya fue borrada.");
+            console.error("Error:", e);
+            alert("Error al procesar la solicitud.");
         }
     }
 }
-
 function renderFolders() {
     const bar = document.getElementById('folder-bar');
     if (!bar) return;

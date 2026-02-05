@@ -23,7 +23,13 @@ html, body {
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100vw;  /* 100% del ancho de la ventana */
+    height: 100vh; /* 100% del alto de la ventana */
+    overflow-x: hidden;
+}
 body {
     display: flex;
     justify-content: center;
@@ -106,7 +112,21 @@ body {
     border-top: 0.5px solid #ddd;
     height: 60px;
 }
-
+@media (orientation: landscape) {
+    .toolbar-top {
+        /* Reducimos el padding superior en horizontal porque no hay notch lateral */
+        padding-top: env(safe-area-inset-top, 10px); 
+        height: auto;
+    }
+    
+    /* Si quieres ocultar elementos que estorben en horizontal */
+    .algun-elemento-estorboso {
+        display: none;
+}
+  .contenedor-principal {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
 /* 5. ELEMENTOS DE LA LISTA Y CHIPS */
 .note-card {
     padding: 1.2rem;

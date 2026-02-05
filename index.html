@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>CANCIONERO IDP</title>
     
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -27,7 +27,7 @@
         .app-container { width: 100%; max-width: 430px; height: 100vh; background: var(--bg); position: relative; overflow: hidden; display: flex; flex-direction: column; }
 
         /* Lista de Notas */
-        .folder-section { padding: 1rem 1.5rem; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+        .folder-section { padding: 0.5rem 0.5rem; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
         .folder-chip { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; white-space: nowrap; cursor: pointer; background: #f0f0f0; transition: 0.3s; border: none; display: flex; align-items: center; }
         .folder-chip.active { background: var(--folder-accent); color: white; }
         
@@ -43,7 +43,7 @@
         }
         #editor-view.active { transform: translateY(0); }
         
-        .toolbar-top { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 0.5px solid var(--border); background: #fff; min-height: 55px;}
+        .toolbar-top { display: flex; justify-content: space-between; align-items: center; padding: 40px 15px 5px 15px; border-bottom: 0.5px solid var(--border); background: #fff; min-height: 55px;}
         .toolbar-bottom { display: flex; justify-content: space-around; align-items: center; padding: 10px 15px; background: #fafafa; border-top: 0.5px solid #eee; min-height: 60px; }
 
         .btn-icon { background: none; border: none; color: var(--accent); cursor: pointer; display: flex; align-items: center; padding: 8px; }
@@ -51,7 +51,7 @@
         
         /* Transposición Mini */
         .transpose-mini { display: flex; align-items: center; background: #f2f2f7; border-radius: 10px; padding: 2px 8px; gap: 10px; }
-        .btn-transpose-mini { background: none; border: none; font-weight: bold; font-size: 0.9rem; color: var(--accent); cursor: pointer; padding: 5px; }
+        .btn-transpose-mini { background: none; border: none; font-weight: bold; font-size: 1.2rem; color: var(--accent); cursor: pointer; padding: 5px; }
         .transpose-label { font-size: 0.75rem; font-weight: 700; color: #333; }
 
         #song-display { flex: 1; padding: 20px; overflow-y: auto; white-space: pre; font-family: 'Courier New', monospace; font-size: 16px; line-height: 1.6; }
@@ -83,14 +83,14 @@
     </div>
 
     <div id="list-view" style="display:flex; flex-direction:column; height:100%;">
-        <header style="padding: 2.5rem 1.5rem 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <header style="padding: 1.5rem 0.5rem 0.5rem; display: flex; justify-content: space-between; align-items: center;">
             <h1 style="font-size: 2rem; font-weight: 800;">Cancionero IDP</h1>
             <button onclick="addNewFolder()" class="btn-icon" style="color:var(--folder-accent);">
                 <i data-lucide="folder-plus"></i>
             </button>
         </header>
         
-        <div style="padding: 0 1.5rem 1rem;">
+        <div style="padding: 0 1.5rem 0.1rem;">
             <div style="background: #e5e5ea; border-radius: 10px; display: flex; align-items: center; padding: 8px 12px;">
                 <i data-lucide="search" style="width: 16px; color: #8e8e93; margin-right: 8px;"></i>
                 <input type="text" id="search-input" placeholder="Buscar canción..." oninput="handleSearch()" style="background: transparent; border: none; outline: none; width: 100%; font-size: 1rem;">
@@ -153,7 +153,7 @@
     </div>
 </div>
 
-    <script src="script.js?v=1.2"></script>
+<script src="script.js"></script>
 <script>
     // Inicialización de iconos al cargar
     lucide.createIcons();

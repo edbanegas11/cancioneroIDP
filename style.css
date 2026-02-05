@@ -91,7 +91,7 @@ body {
     /* Esto añade el espacio necesario para que la hora no tape los botones */
     padding-top: env(safe-area-inset-top, 20px); 
     /* Ajustamos el alto para que sea la suma del espacio seguro + 60px de barra */
-    height: calc(60px + env(safe-area-inset-top, 0px)); 
+    height: calc(80px + env(safe-area-inset-top, 0px)); 
     background: #fff;
     border-bottom: 0.5px solid #eee;
     box-sizing: border-box;
@@ -117,10 +117,10 @@ body {
 .folder-chip {
     display: inline-flex;
     align-items: center;
-    padding: 8px 12px;
+    padding: 8px 12px ;
     background: #f2f2f7;
     border-radius: 20px;
-    margin-right: 8px;
+    margin-right: 3px;
     font-size: 0.9rem;
     white-space: nowrap;
 }

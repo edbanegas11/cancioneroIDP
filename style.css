@@ -32,10 +32,24 @@ body, html {
 }
 body {
     display: flex;
-    justify-content: center;
-    /* RESPETA ZONAS SEGURAS (iPhone) O USA RESPALDO (Android) */
-    padding-top: env(safe-area-inset-top, 35px);
-    padding-bottom: env(safe-area-inset-bottom, 60px);
+    flex-direction: column; /* Asegura que los elementos se apilen verticalmente */
+    justify-content: flex-start; /* Alinea al inicio, no al centro */
+    margin: 0;
+    
+    /* Ocupa el 100% real del dispositivo */
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* Unidad moderna que se ajusta con barras del navegador */
+
+    /* RESPETA ZONAS SEGURAS DINÁMICAMENTE */
+    /* En vertical usa el notch, en horizontal se ajusta solo */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 /* 2. CONTENEDORES PRINCIPALES */

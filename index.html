@@ -110,67 +110,59 @@
     </div>
 
     <div id="editor-view">
-        <div id="view-mode" style="display: flex; flex-direction: column; height: 100%;">
-            <div class="toolbar-top">
-                <button onclick="saveAndClose()" class="btn-icon">
-                    <i data-lucide="chevron-left"></i>
-                </button>
-
-                <div class="transpose-mini">
-                    <button onclick="transpose(-1)" class="btn-transpose-mini">-½</button>
-                    <span class="transpose-label">TONO</span>
-                    <button onclick="transpose(1)" class="btn-transpose-mini">+½</button>
-                </div>
-                
-                <div style="display: flex; gap: 5px;">
-                    <button onclick="openPicker()" class="btn-icon" style="color: #8e8e93;"><i data-lucide="folder-tree"></i></button>
-                    <button onclick="secureAction('delete')" class="btn-icon" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
-                    <button onclick="secureAction('edit')" class="btn-icon" style="color: var(--accent);"><i data-lucide="edit-3"></i></button>
-                </div>
+    <div id="view-mode" style="display: flex; flex-direction: column; height: 100%;">
+        <div class="toolbar-top">
+            <button onclick="saveAndClose()" class="btn-icon">
+                <i data-lucide="chevron-left"></i>
+            </button>
+            <div class="transpose-mini">
+                <button onclick="transpose(-1)" class="btn-transpose-mini">-½</button>
+                <span class="transpose-label">TONO</span>
+                <button onclick="transpose(1)" class="btn-transpose-mini">+½</button>
             </div>
-
-            <div id="song-display"></div>
-        </div>
-
-        <div id="edit-mode" style="display:none; flex-direction: column; height: 100%;">
-    <div class="toolbar-top">
-        <button onclick="exitEditMode()" class="btn-icon">
-            <i data-lucide="chevron-left"></i>
-        </button>
-        <span style="font-weight: bold;">Editando Canción</span>
-        <div style="width: 40px;"></div>
-    </div>
-    
-   <div id="floating-toolbar">
-    <button onclick="applyFormat('bold')" class="btn-circle">B</button>
-    <button onclick="applyFormat('italic')" class="btn-circle">I</button>
-    
-    <div class="toolbar-sep"></div>
-
-    <button onclick="applyFormat('hiliteColor', '#fff176')" class="btn-pill-yellow"><u>ABC</u></button>
-    <button onclick="applyFormat('hiliteColor', 'transparent')" class="btn-close-circle">✕</button>
-
-    <div class="toolbar-sep"></div>
-
-    <button onclick="applyFormat('foreColor', '#000000')" class="dot-color black"></button>
-    <button onclick="applyFormat('foreColor', '#ff453a')" class="dot-color red"></button>
-</div>
-    
-    <div id="note-textarea" 
-         contenteditable="true" 
-         placeholder="Escribe la letra y acordes aquí..." 
-         oninput="updateSongDisplay()"
-         style="flex: 1; padding: 15px; overflow-y: auto; outline: none; background: white; white-space: pre-wrap;"></div>
-</div>
-
-            <div class="toolbar-bottom">
-                <button onmousedown="event.preventDefault()" onclick="undoText()" class="btn-icon" title="Deshacer">
-                    <i data-lucide="rotate-ccw"></i>
-                </button>
-                <button onclick="exitEditMode()" class="btn-text">Hecho</button>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="openPicker()" class="btn-icon" style="color: #8e8e93;"><i data-lucide="folder-tree"></i></button>
+                <button onclick="secureAction('delete')" class="btn-icon" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
+                <button onclick="secureAction('edit')" class="btn-icon" style="color: var(--accent);"><i data-lucide="edit-3"></i></button>
             </div>
         </div>
+        <div id="song-display"></div>
     </div>
+
+    <div id="edit-mode" style="display:none; flex-direction: column; height: 100%;">
+        <div class="toolbar-top">
+            <button onclick="exitEditMode()" class="btn-icon">
+                <i data-lucide="chevron-left"></i>
+            </button>
+            <span style="font-weight: bold;">Editando Canción</span>
+            <div style="width: 40px;"></div>
+        </div>
+
+        <div id="note-textarea" 
+             contenteditable="true" 
+             oninput="updateSongDisplay()"
+             style="flex: 1; padding: 20px; overflow-y: auto; outline: none; background: white; white-space: pre-wrap; font-family: inherit; font-size: 1.1rem; line-height: 1.5;">
+        </div>
+
+        <div id="static-toolbar">
+            <button onclick="applyFormat('bold')" class="btn-tool"><b>B</b></button>
+            <button onclick="applyFormat('italic')" class="btn-tool"><i>I</i></button>
+            <div class="v-sep"></div>
+            <button onclick="applyFormat('hiliteColor', '#fff176')" class="btn-marker">ABC</button>
+            <button onclick="applyFormat('hiliteColor', 'transparent')" class="btn-unmark">✕</button>
+            <div class="v-sep"></div>
+            <button onclick="applyFormat('foreColor', '#000000')" class="dot black"></button>
+            <button onclick="applyFormat('foreColor', '#ff453a')" class="dot red"></button>
+        </div>
+
+        <div class="toolbar-bottom">
+            <button onmousedown="event.preventDefault()" onclick="undoText()" class="btn-icon">
+                <i data-lucide="rotate-ccw"></i>
+            </button>
+            <button onclick="exitEditMode()" class="btn-text">Hecho</button>
+        </div>
+    </div>
+</div>
 
     <div id="folder-picker" onclick="closePicker()">
         <div class="picker-content" onclick="event.stopPropagation()">

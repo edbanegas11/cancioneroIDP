@@ -1,4 +1,4 @@
-// 1. Configuración de Firebase
+// 1. CONFIGURACIÓN DE FIREBASE
 const firebaseConfig = {
     apiKey: "AIzaSyBu3yo2VhQCP_VeBX3Y-6fQ-Wii-mFVqg0",
     authDomain: "cancioneroidp.firebaseapp.com",
@@ -13,90 +13,48 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-firebase.firestore().enablePersistence()
-  .catch((err) => {
-      if (err.code == 'failed-precondition') {
-          // Probablemente varias pestañas abiertas a la vez
-          console.log('Persistencia falló: Multi-pestaña');
-      } else if (err.code == 'unimplemented') {
-          // El navegador no lo soporta (muy raro en iPhone/Chrome moderno)
-          console.log('Persistencia no disponible');
-      }
-  });
+// Persistencia para que funcione sin internet
+firebase.firestore().enablePersistence().catch((err) => {
+    console.warn("Error de persistencia:", err.code);
+});
 
 const db = firebase.firestore();
 const notesCol = db.collection('notes');
 
-
-// 2. Variables de Estado
+// 2. VARIABLES DE ESTADO GLOBALES
 const scaleSharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const scaleFlat  = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
-let useFlats = false;
-let notes = [];
-let folders = [];
+let notes = []; 
 let currentFolder = "LISTA DE CANCIONES";
 let currentNoteId = null;
-let searchQuery = "";
+let pendingAction = null;
 const PIN_CORRECTO = "019283";
 
-// --- FUNCIONES DE SEGURIDAD (PIN) ---
+// --- 3. SISTEMA DE SEGURIDAD (PIN) ---
 
-function enterEditMode() {
-    const modal = document.getElementById('pin-modal');
-    const input = document.getElementById('pin-input');
-    const error = document.getElementById('pin-error');
-    
-    if (modal) {
-        input.value = ""; 
-        error.style.opacity = "0"; 
-        modal.style.display = 'flex'; 
-        setTimeout(() => input.focus(), 100);
-    }
-}
-let pendingAction = null; 
-
-// 1. Inicia el proceso de seguridad
 function secureAction(actionType) {
-    console.log("Acción segura iniciada:", actionType);
     pendingAction = actionType;
-    
     const modal = document.getElementById('pin-modal');
-    const input = document.getElementById('pin-input');
-    const error = document.getElementById('pin-error');
-    
     if (modal) {
-        input.value = "";
-        if (error) error.style.opacity = "0";
+        document.getElementById('pin-input').value = "";
+        document.getElementById('pin-error').style.opacity = "0";
         modal.style.display = 'flex';
-        setTimeout(() => input.focus(), 100);
-    } else {
-        console.error("No se encontró el modal del PIN en el HTML");
+        setTimeout(() => document.getElementById('pin-input').focus(), 100);
     }
 }
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker registrado con éxito'))
-      .catch(err => console.warn('Fallo al registrar Service Worker', err));
-  });
-}
-// 2. Verifica el código 019283
+
 function verifyPin() {
     const input = document.getElementById('pin-input').value;
     const error = document.getElementById('pin-error');
     
-    // Usamos el código que definiste: 019283
-    if (input === "019283") {
+    if (input === PIN_CORRECTO) {
         document.getElementById('pin-modal').style.display = 'none';
-        
         if (pendingAction === 'delete') {
-            removeNoteFromCurrentFolder(); // Esta función ya existe en tu código
+            removeNoteFromCurrentFolder();
         } else if (pendingAction === 'edit') {
-            document.getElementById('view-mode').style.display = 'none';
-            document.getElementById('edit-mode').style.display = 'flex';
-            setTimeout(() => document.getElementById('note-textarea').focus(), 100);
+            openEditMode();
         }
-        pendingAction = null; 
+        pendingAction = null;
     } else {
         if (error) {
             error.style.opacity = "1";
@@ -110,56 +68,119 @@ function closePinModal() {
     document.getElementById('pin-modal').style.display = 'none';
 }
 
-function exitEditMode() {
-    // Guardar cambios al salir
-    const content = document.getElementById('note-textarea').value;
+// --- 4. GESTIÓN DEL EDITOR (HTML CONTENTEDITABLE) ---
+
+function openEditMode() {
+    let note = findNoteById(currentNoteId);
+    if (!note) return;
+
+    const editor = document.getElementById('note-textarea');
+    editor.innerHTML = note.content || ""; // Cargamos HTML
+
+    document.getElementById('view-mode').style.display = 'none';
+    document.getElementById('edit-mode').style.display = 'flex';
+}
+
+async function exitEditMode() {
+    const editor = document.getElementById('note-textarea');
+    const newContent = editor.innerHTML; 
+
     if (currentNoteId) {
-        notesCol.doc(currentNoteId).update({ 
-            content: content,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        try {
+            // 1. Actualizar en la Nube (si existe allí)
+            if (notes.some(n => n.id === currentNoteId)) {
+                await notesCol.doc(currentNoteId).update({
+                    content: newContent,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            
+            // 2. Sincronizar copia local inmediatamente
+            saveNoteLocally({ id: currentNoteId, content: newContent });
+
+            updateSongDisplay();
+            document.getElementById('edit-mode').style.display = 'none';
+            document.getElementById('view-mode').style.display = 'flex';
+        } catch (error) {
+            console.error("Error al guardar:", error);
+            alert("Error al guardar cambios.");
+        }
     }
-    document.getElementById('edit-mode').style.display = 'none';
-    document.getElementById('view-mode').style.display = 'flex';
+}
+
+function applyFormat(command, value = null) {
+    // 1. Aplicamos el formato a la selección actual
+    document.execCommand(command, false, value);
+
+    // 2. Obtenemos la posición del cursor
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+
+    // 3. Movemos el cursor al final de lo que acabamos de editar
+    range.collapse(false); 
+
+    // 4. EL TRUCO: Insertamos un carácter invisible (Zero Width Space) 
+    // y le quitamos todo el formato a ese punto exacto.
+    const span = document.createElement("span");
+    span.innerHTML = "&#8203;"; // Espacio de ancho cero (invisible)
+    span.style.fontWeight = "normal";
+    span.style.fontStyle = "normal";
+    span.style.textDecoration = "none";
+    span.style.color = "#000000";
+    span.style.backgroundColor = "transparent";
+
+    range.insertNode(span);
+
+    // 5. Ponemos el cursor justo DESPUÉS del espacio invisible
+    range.setStartAfter(span);
+    range.setEndAfter(span);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    // 6. Opcional: Cerrar la barra al terminar para que no estorbe
+    document.getElementById('floating-toolbar').style.display = 'none';
+
+    if (window.updateSongDisplay) updateSongDisplay();
+}
+
+function undoText() {
+    document.getElementById('note-textarea').focus();
+    document.execCommand('undo', false, null);
     updateSongDisplay();
 }
 
-// --- FUNCIONES DE VISUALIZACIÓN ---
+// --- 5. VISUALIZACIÓN Y ACORDES ---
 
 function updateSongDisplay() {
-    const text = document.getElementById('note-textarea').value;
+    const editor = document.getElementById('note-textarea');
     const display = document.getElementById('song-display');
-    if (!display) return;
+    if (!editor || !display) return;
 
-    // Esta Regex ahora es más permisiva con números pero estricta con minúsculas
+    let content = editor.innerHTML;
+    // Regex estricta para acordes
     const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus4|sus2|sus|add9|13|11|9|7|5|4|2|M)?(?![a-záéíóú])(?![A-Z])/g;
 
-    display.innerHTML = text.split('\n').map(line => {
-        // Simplemente resaltamos acordes sin importar si hay // o no
-        const highlighted = line.replace(chordRegex, match => {
-            return `<span class="chord-highlight">${match}</span>`;
-        });
+    // Procesamos líneas respetando el formato del editor
+    let lines = content.split(/<div>|<br>|<\/div>/);
 
-        // Mantenemos la estructura de línea exacta
-        return `<div>${highlighted || '&nbsp;'}</div>`;
+    display.innerHTML = lines.map(line => {
+        if (line.trim() === "" && line !== "") return "";
+        const highlighted = line.replace(chordRegex, match => `<span class="chord-highlight">${match}</span>`);
+        return `<div class="song-line">${highlighted || '&nbsp;'}</div>`;
     }).join('');
 }
 
-// --- FUNCIONES DE NOTAS ---
-
 function transpose(semitones) {
-    const textarea = document.getElementById('note-textarea');
-    const songDisplay = document.getElementById('song-display');
-    if (!textarea || !songDisplay) return;
+    const editor = document.getElementById('note-textarea');
+    if (!editor) return;
 
-    let text = textarea.value;
-    const scaleSharp = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    const scaleFlat = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
-
-    const useFlats = /\b[A-G]b\b|\b[A-G]b(m|7|maj)/.test(text);
+    let htmlContent = editor.innerHTML;
+    const useFlats = /\b[A-G]b\b|\b[A-G]b(m|7|maj)/.test(htmlContent);
     const chordRegex = /\b([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus\d?|add\d?|7|9|11|13|5|M|b5)?(?![a-zñóáéíú])/g;
 
-    const newText = text.replace(chordRegex, (fullMatch, baseNote, suffix) => {
+    const newHtml = htmlContent.replace(chordRegex, (fullMatch, baseNote, suffix) => {
         let index = scaleSharp.indexOf(baseNote);
         if (index === -1) index = scaleFlat.indexOf(baseNote);
         if (index === -1) return fullMatch;
@@ -169,51 +190,28 @@ function transpose(semitones) {
         return newBaseNote + (suffix || "");
     });
 
-    // IMPORTANTE: Solo actualizamos lo que se VE, no lo que está guardado en Firebase
-    textarea.value = newText;
-    updateSongDisplay(); 
-    
-    // NOTA: Aquí NO hay llamadas a Firebase. El cambio es 100% temporal.
+    editor.innerHTML = newHtml;
+    updateSongDisplay();
 }
-async function createNewNote() {
-    try {
-        const newNoteRef = await notesCol.add({
-            content: "Nueva Canción\n", 
-            folders: ["LISTA DE CANCIONES"], 
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
 
-        currentNoteId = newNoteRef.id;
-        
-        // Limpiamos el área de texto
-        document.getElementById('note-textarea').value = "Nueva Canción\n";
-        updateSongDisplay();
-        
-        // Abrimos el visor
-        document.getElementById('editor-view').classList.add('active');
+// --- 6. MANEJO DE NOTAS (NUBE Y LOCAL) ---
 
-        // EXPLICACIÓN: En lugar de llamar a enterEditMode(), 
-        // cambiamos los estilos manualmente para entrar directo al editor.
-        document.getElementById('view-mode').style.display = 'none';
-        document.getElementById('edit-mode').style.display = 'flex';
-        
-        setTimeout(() => {
-            document.getElementById('note-textarea').focus();
-        }, 200);
-
-    } catch (e) { 
-        console.error("Error al crear:", e); 
-        alert("No se pudo crear la nota en la nube.");
+function findNoteById(id) {
+    let note = notes.find(n => n.id === id);
+    if (!note) {
+        const offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+        note = offlineNotes[id];
     }
+    return note;
 }
 
 function openNote(id) {
     currentNoteId = id;
-    const note = notes.find(n => n.id === id);
+    const note = findNoteById(id);
     if (!note) return;
 
-    document.getElementById('note-textarea').value = note.content;
+    // Limpieza de seguridad
+    document.getElementById('note-textarea').innerHTML = note.content || "";
     updateSongDisplay();
 
     document.getElementById('editor-view').classList.add('active');
@@ -222,438 +220,292 @@ function openNote(id) {
 }
 
 function saveAndClose() {
-    // 1. Antes de cerrar, recuperamos la nota original de nuestro array local
-    // Esto descarta cualquier cambio de tono que hayamos hecho en el textarea
-    const originalNote = notes.find(n => n.id === currentNoteId);
-    if (originalNote) {
-        document.getElementById('note-textarea').value = originalNote.content;
-        updateSongDisplay();
-    }
-
-    // 2. Cerramos el editor/visor
+    document.getElementById('note-textarea').innerHTML = "";
+    document.getElementById('song-display').innerHTML = "";
     document.getElementById('editor-view').classList.remove('active');
-    
-    // 3. Limpiamos la variable de ID actual para seguridad
     currentNoteId = null;
+    renderNotes();
 }
 
-// --- FUNCIONES DE CARPETAS Y OTROS ---
-
-function addNewFolder() {
-    const name = prompt("Nombre de la nueva carpeta privada:");
-    if (!name) return;
-
+async function createNewNote() {
     try {
-        let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
-
-        if (name.toUpperCase() === "LISTA DE CANCIONES") {
-            alert("Nombre no permitido");
-            return;
-        }
-
-        if (privateFolders.includes(name)) {
-            alert("Esta carpeta ya existe");
-            return;
-        }
-
-        privateFolders.push(name);
-        localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
-
-        // Forzamos el refresco de la interfaz
-        if (typeof renderFolders === 'function') {
-            renderFolders();
-        }
-    } catch (error) {
-        console.error("Error local:", error);
-        alert("Error al crear carpeta en este dispositivo.");
-    }
-}
-
-function deleteFolder(folderName) {
-    if (!confirm(`¿Borrar carpeta local "${folderName}"?`)) return;
-
-    let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
-    privateFolders = privateFolders.filter(f => f !== folderName);
-    localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
-
-    // También limpiamos las asignaciones de notas en esa carpeta
-    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-    for (let id in localAssignments) {
-        if (localAssignments[id] === folderName) delete localAssignments[id];
-    }
-    localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
-
-    renderFolders();
-    selectFolder('LISTA DE CANCIONES');
-}
-
-function selectFolder(name) {
-    currentFolder = name;
-    
-    if (name === 'LISTA DE CANCIONES') {
-        // Modo Nube: Usa los datos de Firebase
-        renderNotes(notes); 
-    } else {
-        // Modo Offline: Filtra las notas guardadas en el teléfono
-        let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-        let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+        const initial = "";
         
-        // Buscamos qué notas pertenecen a esta carpeta local
-        let filteredIds = Object.keys(localAssignments).filter(id => localAssignments[id] === name);
-        let folderNotes = filteredIds.map(id => offlineNotes[id]).filter(n => n !== undefined);
+        // 1. Aseguramos el ID: Capturamos la respuesta de Firebase
+        const newRef = await notesCol.add({
+            content: initial,
+            folders: ["LISTA DE CANCIONES"],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
         
-        renderNotes(folderNotes);
-    }
-    renderFolders();
-}
-
-function openPicker() {
-    const picker = document.getElementById('folder-picker');
-    if (picker) {
-        picker.style.display = 'flex';
-        renderFolderPicker();
-    }
-}
-function undoText() {
-    const textarea = document.getElementById('note-textarea');
-    if (!textarea) return;
-
-    // 1. Ponemos el foco en el texto (Indispensable para iOS)
-    textarea.focus();
-
-    // 2. Ejecutamos el comando de deshacer del sistema
-    try {
-        document.execCommand('undo', false, null);
-    } catch (e) {
-        console.warn("El navegador no soporta execCommand, usando fallback");
-    }
-
-    // 3. Actualizamos el visor para que el cambio se vea reflejado
-    if (typeof updateSongDisplay === "function") {
+        // Asignamos el ID a la variable global
+        currentNoteId = newRef.id;
+        
+        // 2. Cargamos el texto inicial en el editor
+        document.getElementById('note-textarea').innerHTML = initial;
         updateSongDisplay();
-    }
-}
-function closePicker() { document.getElementById('folder-picker').style.display = 'none'; }
 
-function renderFolderPicker() {
-    const container = document.getElementById('picker-list');
-    if (!container || !currentNoteId) return;
-
-    // LEER SOLO DEL TELÉFONO
-    let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
-    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-
-    // Si el array está vacío, mostrar mensaje
-    if (privateFolders.length === 0) {
-        container.innerHTML = '<p style="padding:20px; color:gray;">Crea una carpeta primero</p>';
-        return;
-    }
-
-    container.innerHTML = privateFolders.map(folderName => {
-        const isLinked = localAssignments[currentNoteId] === folderName;
-        return `
-            <div class="picker-item" onclick="toggleFolderLink('${folderName}')" style="display:flex; justify-content:space-between; padding:15px; border-bottom:1px solid #eee;">
-                <span>${folderName}</span>
-                <span style="color:var(--folder-accent); font-weight:bold;">${isLinked ? '✓' : ''}</span>
-            </div>`;
-    }).join('');
-}
-async function exitEditMode() {
-    const newContent = document.getElementById('note-textarea').value;
-
-    if (currentNoteId) {
-        try {
-            // Guardar en Firebase
-            await notesCol.doc(currentNoteId).update({
-                content: newContent,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            // Actualizar localmente
-            const note = notes.find(n => n.id === currentNoteId);
-            if (note) note.content = newContent;
-
-            // Refrescar el visor de la canción
-            updateSongDisplay();
-            
-            // Volver a la vista normal
-            document.getElementById('edit-mode').style.display = 'none';
-            document.getElementById('view-mode').style.display = 'block';
-        } catch (error) {
-            console.error("Error al guardar:", error);
-            alert("No se pudo guardar la nota.");
-        }
-    }
-}
-function toggleFolderLink(folderName) {
-    if (!currentNoteId) return;
-    
-    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-    
-    // Si ya estaba en esta carpeta, la quitamos (Toggle)
-    if (localAssignments[currentNoteId] === folderName) {
-        delete localAssignments[currentNoteId];
-        console.log("Nota quitada de la carpeta local");
-    } else {
-        // La asignamos a la carpeta
-        localAssignments[currentNoteId] = folderName;
+        // 3. Forzamos la apertura: Mostramos el editor y ocultamos la vista previa
+        document.getElementById('editor-view').classList.add('active'); // Abre la pantalla
+        document.getElementById('view-mode').style.display = 'none';    // Oculta lectura
+        document.getElementById('edit-mode').style.display = 'flex';    // Muestra edición
         
-        // BUSCAR LA NOTA PARA COPIARLA OFFLINE
-        const noteToCopy = notes.find(n => n.id === currentNoteId);
-        if (noteToCopy) {
-            saveNoteLocally(noteToCopy); // Aquí se crea la copia física
-        }
-    }
+        // 4. Ponemos el cursor listo para escribir
+        setTimeout(() => document.getElementById('note-textarea').focus(), 100);
 
-    localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
-    
-    renderFolderPicker(); // Actualiza los checks (círculos)
-    renderFolders();      // Actualiza los contadores en la barra naranja
-}
-
-async function removeNoteFromCurrentFolder() {
-    if (!currentNoteId) return;
-
-    const mensaje = currentFolder === "LISTA DE CANCIONES" 
-        ? "¿Eliminar esta canción permanentemente para TODOS?" 
-        : `¿Quitar de mi carpeta privada "${currentFolder}"?`;
-
-    if (confirm(mensaje)) {
-        try {
-            if (currentFolder === "LISTA DE CANCIONES") {
-                // 1. BORRADO TOTAL DE LA NUBE (Compartido)
-                await notesCol.doc(currentNoteId).delete();
-            } else {
-                // 2. SOLO QUITAR DE CARPETA LOCAL (Privado del teléfono)
-                // En lugar de update en Firebase, borramos la asignación local
-                let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-                
-                if (localAssignments[currentNoteId]) {
-                    delete localAssignments[currentNoteId];
-                    localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
-                }
-                console.log("Nota quitada de la carpeta localmente.");
-            }
-
-            // Cerrar editor y limpiar
-            document.getElementById('editor-view').classList.remove('active');
-            setTimeout(() => { currentNoteId = null; }, 500);
-            
-            // Refrescar para ver los cambios
-            renderFolders();
-            renderNotes();
-
-        } catch (e) {
-            console.error("Error:", e);
-            alert("Error al procesar la solicitud.");
-        }
+    } catch (e) { 
+        console.error(e);
+        alert("Error al crear nota."); 
     }
 }
-function renderFolders() {
-    const bar = document.getElementById('folder-bar');
-    if (!bar) return;
 
-    // 1. Cargamos lo que hay en el teléfono
-    const privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
-    const localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-    const offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+// --- 7. RENDERIZADO DE LISTAS Y CARPETAS ---
 
-    // 2. Creamos la lista combinada: Principal + Tus carpetas
-    const allFolders = [{ name: 'LISTA DE CANCIONES' }, ...privateFolders.map(name => ({ name }))];
-
-    bar.innerHTML = allFolders.map(f => {
-        const isSelected = f.name === currentFolder;
-        
-        let count = 0;
-        if (f.name === 'LISTA DE CANCIONES') {
-            // Cuenta todo lo que viene de Firebase
-            count = notes.length;
-        } else {
-            // Cuenta solo los IDs asignados a esta carpeta en el teléfono
-            count = Object.values(localAssignments).filter(folderName => folderName === f.name).length;
-        }
-
-        return `
-            <div class="folder-chip ${isSelected ? 'active' : ''}">
-                <span onclick="selectFolder('${f.name}')" style="cursor:pointer;">
-                    ${f.name} <span class="folder-count">(${count})</span>
-                </span>
-                ${f.name !== 'LISTA DE CANCIONES' ? `
-                    <button onclick="deleteFolder('${f.name}')" style="background:none; border:none; margin-left:8px; cursor:pointer; color:inherit;">
-                        <i data-lucide="x" style="width:14px;"></i>
-                    </button>` : ''}
-            </div>`;
-    }).join('');
-
-    if (window.lucide) lucide.createIcons();
-}
-function openEditMode() {
-    const note = notes.find(n => n.id === currentNoteId);
-    if (!note) return;
-
-    // 1. Llenamos el textarea con el texto de la nota
-    const textarea = document.getElementById('note-textarea');
-    textarea.value = note.content || "";
-
-    // 2. Cambiamos de pantalla
-    document.getElementById('view-mode').style.display = 'none';
-    document.getElementById('edit-mode').style.display = 'block';
-
-    // 3. Opcional: Ajustar altura del textarea automáticamente
-    textarea.style.height = 'auto';
-    textarea.style.height = textarea.scrollHeight + 'px';
-    
-    // 4. Inicializar iconos de Lucide (por el botón de deshacer)
-    if (window.lucide) lucide.createIcons();
-}
 function renderNotes() {
     const list = document.getElementById('notes-list');
     if (!list) return;
 
-    // 1. CARGAR DATOS LOCALES
     let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
     let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
-    let searchQuery = document.getElementById('search-input')?.value.toLowerCase() || "";
-
+    let search = document.getElementById('search-input')?.value.toLowerCase() || "";
+    
     let filtered = [];
-
-    // 2. DECIDIR DE DÓNDE SACAR LAS NOTAS
     if (currentFolder === "LISTA DE CANCIONES") {
-        // MODO NUBE: Usar la variable 'notes' de Firebase
         filtered = notes;
     } else {
-        // MODO LOCAL: Filtrar las que el usuario movió a esta carpeta específica
-        const idsInFolder = Object.keys(localAssignments).filter(id => localAssignments[id] === currentFolder);
-        filtered = idsInFolder.map(id => offlineNotes[id]).filter(n => n != null);
+        const ids = Object.keys(localAssignments).filter(id => localAssignments[id] === currentFolder);
+        filtered = ids.map(id => offlineNotes[id]).filter(n => n != null);
     }
 
-    // 3. APLICAR BUSCADOR (Si hay texto en el input de búsqueda)
-    if (searchQuery) {
-        filtered = filtered.filter(n => (n.content || "").toLowerCase().includes(searchQuery));
+    const getPlainText = (html) => {
+        const t = document.createElement("div");
+        t.innerHTML = html || "";
+        return t.textContent || t.innerText || "";
+    };
+
+    if (search) {
+        filtered = filtered.filter(n => getPlainText(n.content).toLowerCase().includes(search));
     }
 
-    // 4. ORDENAR ALFABÉTICAMENTE
-    filtered.sort((a, b) => (a.content || "").localeCompare(b.content || ""));
+    filtered.sort((a, b) => getPlainText(a.content).localeCompare(getPlainText(b.content)));
 
-    // 5. RENDERIZAR (Dibujar en pantalla)
+    list.innerHTML = "";
     if (filtered.length === 0) {
-        list.innerHTML = `<div style="text-align:center; color:gray; margin-top:2rem;">No hay canciones aquí</div>`;
+        list.innerHTML = `<div style="text-align:center; color:gray; padding:20px;">No hay canciones</div>`;
         return;
     }
 
-    // Agrupar por letra (A, B, C...)
+    // Agrupación Alfabética
     const groups = {};
     filtered.forEach(n => {
-        const char = n.content ? n.content.trim()[0].toUpperCase() : "N";
-        if (!groups[char]) groups[char] = [];
-        groups[char].push(n);
+        const firstChar = getPlainText(n.content).trim()[0]?.toUpperCase() || "N";
+        if (!groups[firstChar]) groups[firstChar] = [];
+        groups[firstChar].push(n);
     });
 
-    list.innerHTML = "";
     Object.keys(groups).sort().forEach(letter => {
         list.innerHTML += `<div class="alphabet-header">${letter}</div>`;
         groups[letter].forEach(note => {
-            const lines = note.content.split('\n');
+            const lines = getPlainText(note.content).split('\n').filter(l => l.trim() !== "");
             list.innerHTML += `
                 <div class="note-item" onclick="openNote('${note.id}')">
-                    <span style="font-weight:600; display:block;">${lines[0] || "Nueva nota"}</span>
+                    <span style="font-weight:600; display:block;">${lines[0] || "Nueva"}</span>
                     <span style="font-size:0.85rem; color:gray;">${lines[1] || "Ver nota..."}</span>
                 </div>`;
         });
     });
 }
 
-// Función para guardar una copia local
-function saveNoteLocally(note) {
-    if (!note || !note.id) return;
+function renderFolders() {
+    const bar = document.getElementById('folder-bar');
+    if (!bar) return;
 
-    let localNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
-    
-    // Guardamos una copia limpia
-    localNotes[note.id] = {
-        id: note.id,
-        content: note.content || "",
-        // Convertimos el timestamp de Firebase a milisegundos para poder comparar luego
-        updatedAt: note.updatedAt && note.updatedAt.toMillis ? note.updatedAt.toMillis() : Date.now()
-    };
-    
-    localStorage.setItem('offlineNotes', JSON.stringify(localNotes));
-    console.log(`Nota "${note.id}" guardada para uso offline.`);
+    const privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+    const localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    const all = [{ name: 'LISTA DE CANCIONES' }, ...privateFolders.map(n => ({ name: n }))];
+
+    bar.innerHTML = all.map(f => {
+        const isSelected = f.name === currentFolder;
+        let count = (f.name === 'LISTA DE CANCIONES') 
+            ? notes.length 
+            : Object.values(localAssignments).filter(v => v === f.name).length;
+
+        return `
+            <div class="folder-chip ${isSelected ? 'active' : ''}">
+                <span onclick="selectFolder('${f.name}')">${f.name} (${count})</span>
+                ${f.name !== 'LISTA DE CANCIONES' ? `<button onclick="deleteFolder('${f.name}')">×</button>` : ''}
+            </div>`;
+    }).join('');
 }
-// Ejemplo de cómo cargar notas priorizando el almacenamiento local
-function loadNotes() {
-    // Intentar cargar con la configuración de caché
-    notesCol.orderBy('title').onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
-        const source = snapshot.metadata.fromCache ? "local" : "servidor";
-        console.log("Cargando datos desde: " + source);
-        
-        notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+// --- 8. CARPETAS LOCALES Y PICKER ---
+
+function addNewFolder() {
+    const name = prompt("Nombre de la carpeta:");
+    if (!name || name.toUpperCase() === "LISTA DE CANCIONES") return;
+    
+    let folders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+    if (!folders.includes(name)) {
+        folders.push(name);
+        localStorage.setItem('myPrivateFolders', JSON.stringify(folders));
         renderFolders();
-        renderNotes();
-    }, (error) => {
-        console.error("Error al cargar notas:", error);
-    });
-}
-function handleSearch() {
-    const input = document.getElementById('search-input');
-    if (input) {
-        searchQuery = input.value.toLowerCase();
-        renderNotes();
     }
 }
 
-window.onload = () => {
-   
+function deleteFolder(name) {
+    if (!confirm(`¿Borrar "${name}"?`)) return;
+    let folders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+    localStorage.setItem('myPrivateFolders', JSON.stringify(folders.filter(f => f !== name)));
+    
+    let assignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    for (let id in assignments) if (assignments[id] === name) delete assignments[id];
+    localStorage.setItem('localFolderAssignments', JSON.stringify(assignments));
+    
+    selectFolder('LISTA DE CANCIONES');
+}
 
-    // 2. Mantenemos solo UNA conexión a las notas
+function selectFolder(name) {
+    currentFolder = name;
+    renderFolders();
+    renderNotes();
+}
+
+function openPicker() {
+    const p = document.getElementById('folder-picker');
+    if (p) { p.style.display = 'flex'; renderFolderPicker(); }
+}
+
+function closePicker() { document.getElementById('folder-picker').style.display = 'none'; }
+
+function renderFolderPicker() {
+    const container = document.getElementById('picker-list');
+    const folders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+    const assignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+
+    if (folders.length === 0) {
+        container.innerHTML = '<p style="padding:20px; color:gray;">Crea una carpeta primero</p>';
+        return;
+    }
+
+    container.innerHTML = folders.map(f => {
+        const isLinked = assignments[currentNoteId] === f;
+        return `
+            <div class="picker-item" onclick="toggleFolderLink('${f}')" style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
+                <span>${f}</span>
+                <span>${isLinked ? '✓' : ''}</span>
+            </div>`;
+    }).join('');
+}
+
+function toggleFolderLink(folderName) {
+    let assignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    if (assignments[currentNoteId] === folderName) {
+        delete assignments[currentNoteId];
+    } else {
+        assignments[currentNoteId] = folderName;
+        const note = findNoteById(currentNoteId);
+        if (note) saveNoteLocally(note);
+    }
+    localStorage.setItem('localFolderAssignments', JSON.stringify(assignments));
+    renderFolderPicker();
+    renderFolders();
+}
+
+// --- 9. PERSISTENCIA Y SINCRONIZACIÓN ---
+
+function saveNoteLocally(note) {
+    let offline = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+    offline[note.id] = { id: note.id, content: note.content || "", updatedAt: Date.now() };
+    localStorage.setItem('offlineNotes', JSON.stringify(offline));
+}
+
+async function removeNoteFromCurrentFolder() {
+    if (!currentNoteId) return;
+    const isMain = currentFolder === "LISTA DE CANCIONES";
+    if (!confirm(isMain ? "¿BORRAR PERMANENTE DE LA NUBE?" : "¿Quitar de esta carpeta?")) return;
+
+    if (isMain) {
+        await notesCol.doc(currentNoteId).delete();
+    } else {
+        let assignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+        delete assignments[currentNoteId];
+        localStorage.setItem('localFolderAssignments', JSON.stringify(assignments));
+    }
+    saveAndClose();
+}
+
+// --- 10. INICIALIZACIÓN ---
+
+window.onload = () => {
+    // Escucha en tiempo real de Firebase
     notesCol.onSnapshot(snap => {
         notes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // --- SINCRONIZACIÓN AUTOMÁTICA OFFLINE ---
-        let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
-        let changed = false;
-
-        notes.forEach(cloudNote => {
-            if (offlineNotes[cloudNote.id]) {
-                // Si el contenido cambió en la nube, actualizamos la copia local
-                if (cloudNote.content !== offlineNotes[cloudNote.id].content) {
-                    offlineNotes[cloudNote.id].content = cloudNote.content;
-                    changed = true;
-                    console.log("Sincronizado cambio de nube a copia local: " + cloudNote.id);
-                }
+        // Sincronizar cambios de nube a locales automáticamente
+        let offline = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+        notes.forEach(n => {
+            if (offline[n.id] && offline[n.id].content !== n.content) {
+                offline[n.id].content = n.content;
             }
         });
+        localStorage.setItem('offlineNotes', JSON.stringify(offline));
 
-        if (changed) {
-            localStorage.setItem('offlineNotes', JSON.stringify(offlineNotes));
-        }
-        
-        // Refrescamos la interfaz
         renderFolders();
-        renderNotes(); // Esta función ahora ya sabe decidir si usa 'notes' o 'offlineNotes'
+        renderNotes();
+      // Lógica para el texto temporal (Placeholder)
+const editor = document.getElementById('note-textarea');
+
+editor.addEventListener('focus', function() {
+    if (this.innerText.trim() === "Escribe tu canción aqui...") {
+        this.innerText = ""; // Borra el texto al hacer clic
+        this.style.color = "black"; // Vuelve el color normal
+    }
+});
+
+editor.addEventListener('blur', function() {
+    if (this.innerText.trim() === "") {
+        this.innerText = "Escribe tu canción aqui..."; // Lo pone si lo dejas vacío
+        this.style.color = "gray"; // Color de texto temporal
+    }
+});
     });
+
+    // Barra de formato flotante
+    document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection();
+    const toolbar = document.getElementById('floating-toolbar');
     
-    // Escuchar Enter en el PIN (Recuerda que tu código es 019283 según tus notas)
+    if (toolbar && !sel.isCollapsed && sel.toString().trim() !== "") {
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        
+        toolbar.style.display = 'flex';
+        
+        // Calcular centro
+        const toolbarWidth = toolbar.offsetWidth;
+        let left = rect.left + (rect.width / 2) - (toolbarWidth / 2);
+        let top = rect.top - 55; // Posición arriba del texto
+
+        // Evitar que se salga de la pantalla (bordes)
+        if (left < 10) left = 10;
+        if (left + toolbarWidth > window.innerWidth) left = window.innerWidth - toolbarWidth - 10;
+
+        toolbar.style.left = `${left}px`;
+        toolbar.style.top = `${top}px`;
+    } else if (toolbar) {
+        toolbar.style.display = 'none';
+    }
+});
+    // Enter en PIN
     document.getElementById('pin-input')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') verifyPin();
     });
 };
-// --- EXPORTACIÓN ---
-window.enterEditMode = enterEditMode;
-window.verifyPin = verifyPin;
-window.closePinModal = closePinModal;
-window.exitEditMode = exitEditMode;
-window.handleSearch = handleSearch;
-window.selectFolder = selectFolder;
-window.createNewNote = createNewNote;
-window.addNewFolder = addNewFolder;
-window.deleteFolder = deleteFolder;
-window.transpose = transpose;
-window.saveAndClose = saveAndClose;
-window.openNote = openNote;
-window.openPicker = openPicker;
-window.closePicker = closePicker;
-window.toggleFolderLink = toggleFolderLink;
-window.removeNoteFromCurrentFolder = removeNoteFromCurrentFolder;
-window.saveNoteLocally = saveNoteLocally;
-window.renderFolderPicker = renderFolderPicker;
+
+// EXPOSICIÓN GLOBAL PARA HTML
+Object.assign(window, {
+    secureAction, verifyPin, closePinModal, exitEditMode, transpose,
+    saveAndClose, openNote, applyFormat, undoText, createNewNote,
+    addNewFolder, deleteFolder, selectFolder, openPicker, closePicker, 
+    toggleFolderLink
+});

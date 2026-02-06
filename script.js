@@ -77,7 +77,9 @@ function openEditMode() {
     if (!note) return;
 
     const editor = document.getElementById('note-textarea');
-    editor.innerHTML = note.content || ""; // Cargamos HTML
+    
+    // USA innerHTML para que el navegador interprete las etiquetas y no las escriba
+    editor.innerHTML = note.content || ""; 
 
     document.getElementById('view-mode').style.display = 'none';
     document.getElementById('edit-mode').style.display = 'flex';
@@ -111,42 +113,25 @@ async function exitEditMode() {
 }
 
 function applyFormat(command, value = null) {
-    // 1. Aplicamos el formato a la selección
     document.execCommand(command, false, value);
 
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
-
     const range = selection.getRangeAt(0);
-    
-    // 2. Nos movemos al final de la selección
+
+    // Salto de formato: Insertamos un espacio de ancho cero para "romper" la etiqueta
+    const zwsp = document.createTextNode('\u200B'); 
     range.collapse(false);
-
-    // 3. CREAMOS UN "PUNTO DE CORTE":
-    // Insertamos un caracter invisible que NO TIENE FORMATO
-    const spacer = document.createTextNode('\u200B'); // Zero-width space
-    
-    // Creamos un span temporal para resetear TODO
-    const span = document.createElement('span');
-    span.style.fontWeight = 'normal';
-    span.style.fontStyle = 'normal';
-    span.style.color = '#000000';
-    span.appendChild(spacer);
-
-    // 4. Insertamos el punto de corte y movemos el cursor después de él
-    range.insertNode(span);
-    range.setStartAfter(span);
-    range.setEndAfter(span);
-    
+    range.insertNode(zwsp);
+    range.setStartAfter(zwsp);
+    range.setEndAfter(zwsp);
     selection.removeAllRanges();
     selection.addRange(range);
 
-    // 5. Forzamos foco y limpieza final
+    // Obligamos a Safari a resetear el estilo en el nuevo punto
     document.execCommand('removeFormat', false, null);
     
-    const editor = document.getElementById('note-textarea');
-    editor.focus();
-
+    document.getElementById('note-textarea').focus();
     if (window.updateSongDisplay) window.updateSongDisplay();
 }
 

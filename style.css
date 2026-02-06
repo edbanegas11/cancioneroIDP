@@ -58,7 +58,7 @@ body {
 
 /* 3. EL EDITOR */
 .editor {
-    position: fixed;
+    position: absolute;
     top: 0; 
     bottom: 0;
     left: 0;
@@ -71,20 +71,6 @@ body {
 }
 
 /* Placeholder inteligente: solo aparece si el editor está realmente vacío */
-#note-textarea {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-    outline: none;
-    background: white;
-    /* CAMBIA ESTO: Usa 'pre-wrap' en lugar de 'pre' */
-    white-space: pre-wrap !important; 
-    /* AÑADE ESTO: Evita que se vea el código */
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-    font-size: 1.1rem;
-    line-height: 1.5;
-    -webkit-user-modify: read-write;
-}
 #note-textarea:empty:before {
     content: "Escribe tu canción aquí...";
     color: #8e8e93;
@@ -122,7 +108,7 @@ body {
 
 /* 5. DISEÑO DE LA CÁPSULA (EL QUE TE GUSTÓ) */
 #static-toolbar {
-    position: fixed;
+    position: relative;
     bottom: 0;
     left: 0;
     width: 100%;

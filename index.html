@@ -133,14 +133,35 @@
         </div>
 
         <div id="edit-mode" style="display:none; flex-direction: column; height: 100%;">
-            <div class="toolbar-top">
-                <button onclick="exitEditMode()" class="btn-icon">
-                    <i data-lucide="chevron-left"></i>
-                </button>
-                <span style="font-weight: bold;">Editando Canción</span>
-                <div style="width: 40px;"></div> </div>
-            
-            <textarea id="note-textarea" placeholder="Escribe la letra y acordes aquí..." oninput="updateSongDisplay()"></textarea>
+    <div class="toolbar-top">
+        <button onclick="exitEditMode()" class="btn-icon">
+            <i data-lucide="chevron-left"></i>
+        </button>
+        <span style="font-weight: bold;">Editando Canción</span>
+        <div style="width: 40px;"></div>
+    </div>
+    
+   <div id="floating-toolbar">
+    <button onclick="applyFormat('bold')" class="btn-circle">B</button>
+    <button onclick="applyFormat('italic')" class="btn-circle">I</button>
+    
+    <div class="toolbar-sep"></div>
+
+    <button onclick="applyFormat('hiliteColor', '#fff176')" class="btn-pill-yellow"><u>ABC</u></button>
+    <button onclick="applyFormat('hiliteColor', 'transparent')" class="btn-close-circle">✕</button>
+
+    <div class="toolbar-sep"></div>
+
+    <button onclick="applyFormat('foreColor', '#000000')" class="dot-color black"></button>
+    <button onclick="applyFormat('foreColor', '#ff453a')" class="dot-color red"></button>
+</div>
+    
+    <div id="note-textarea" 
+         contenteditable="true" 
+         placeholder="Escribe la letra y acordes aquí..." 
+         oninput="updateSongDisplay()"
+         style="flex: 1; padding: 15px; overflow-y: auto; outline: none; background: white; white-space: pre-wrap;"></div>
+</div>
 
             <div class="toolbar-bottom">
                 <button onmousedown="event.preventDefault()" onclick="undoText()" class="btn-icon" title="Deshacer">

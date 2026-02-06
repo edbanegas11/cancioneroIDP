@@ -1,4 +1,4 @@
-// 1. CONFIGURACIÓN DE FIREBASE
+/// 1. CONFIGURACIÓN DE FIREBASE (ACTUALIZADA)
 const firebaseConfig = {
     apiKey: "AIzaSyBu3yo2VhQCP_VeBX3Y-6fQ-Wii-mFVqg0",
     authDomain: "cancioneroidp.firebaseapp.com",
@@ -13,12 +13,14 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Persistencia para que funcione sin internet
-firebase.firestore().enablePersistence().catch((err) => {
-    console.warn("Error de persistencia:", err.code);
+const db = firebase.firestore();
+
+// Nueva forma de persistencia para evitar el error de consola en CodePen/APK
+db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+db.enablePersistence({synchronizeTabs:true}).catch((err) => {
+    console.warn("Persistencia desactivada:", err.code);
 });
 
-const db = firebase.firestore();
 const notesCol = db.collection('notes');
 
 // 2. VARIABLES DE ESTADO GLOBALES
@@ -109,46 +111,43 @@ async function exitEditMode() {
 }
 
 function applyFormat(command, value = null) {
-    // 1. Aplicamos el formato a la selección actual
+    // 1. Aplicamos el formato a la selección
     document.execCommand(command, false, value);
 
-    // 2. Obtenemos la posición del cursor
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
 
     const range = selection.getRangeAt(0);
+    
+    // 2. Nos movemos al final de la selección
+    range.collapse(false);
 
-    // 3. Movemos el cursor al final de lo que acabamos de editar
-    range.collapse(false); 
+    // 3. CREAMOS UN "PUNTO DE CORTE":
+    // Insertamos un caracter invisible que NO TIENE FORMATO
+    const spacer = document.createTextNode('\u200B'); // Zero-width space
+    
+    // Creamos un span temporal para resetear TODO
+    const span = document.createElement('span');
+    span.style.fontWeight = 'normal';
+    span.style.fontStyle = 'normal';
+    span.style.color = '#000000';
+    span.appendChild(spacer);
 
-    // 4. EL TRUCO: Insertamos un carácter invisible (Zero Width Space) 
-    // y le quitamos todo el formato a ese punto exacto.
-    const span = document.createElement("span");
-    span.innerHTML = "&#8203;"; // Espacio de ancho cero (invisible)
-    span.style.fontWeight = "normal";
-    span.style.fontStyle = "normal";
-    span.style.textDecoration = "none";
-    span.style.color = "#000000";
-    span.style.backgroundColor = "transparent";
-
+    // 4. Insertamos el punto de corte y movemos el cursor después de él
     range.insertNode(span);
-
-    // 5. Ponemos el cursor justo DESPUÉS del espacio invisible
     range.setStartAfter(span);
     range.setEndAfter(span);
+    
     selection.removeAllRanges();
     selection.addRange(range);
 
-    // 6. Opcional: Cerrar la barra al terminar para que no estorbe
-    document.getElementById('floating-toolbar').style.display = 'none';
+    // 5. Forzamos foco y limpieza final
+    document.execCommand('removeFormat', false, null);
+    
+    const editor = document.getElementById('note-textarea');
+    editor.focus();
 
-    if (window.updateSongDisplay) updateSongDisplay();
-}
-
-function undoText() {
-    document.getElementById('note-textarea').focus();
-    document.execCommand('undo', false, null);
-    updateSongDisplay();
+    if (window.updateSongDisplay) window.updateSongDisplay();
 }
 
 // --- 5. VISUALIZACIÓN Y ACORDES ---
@@ -210,21 +209,22 @@ function openNote(id) {
     const note = findNoteById(id);
     if (!note) return;
 
-    // Limpieza de seguridad
-    document.getElementById('note-textarea').innerHTML = note.content || "";
+    // 1. Forzar visibilidad del contenedor principal del editor
+    const editorView = document.getElementById('editor-view');
+    editorView.style.display = 'block'; // O 'flex' según tu CSS
+    editorView.classList.add('active');
+
+    // 2. Inyectar contenido
+    const textarea = document.getElementById('note-textarea');
+    textarea.innerHTML = note.content || "";
+    
+    // 3. Resetear el scroll al inicio
+    textarea.scrollTop = 0;
+
     updateSongDisplay();
 
-    document.getElementById('editor-view').classList.add('active');
     document.getElementById('view-mode').style.display = 'flex';
     document.getElementById('edit-mode').style.display = 'none';
-}
-
-function saveAndClose() {
-    document.getElementById('note-textarea').innerHTML = "";
-    document.getElementById('song-display').innerHTML = "";
-    document.getElementById('editor-view').classList.remove('active');
-    currentNoteId = null;
-    renderNotes();
 }
 
 async function createNewNote() {
@@ -433,70 +433,88 @@ async function removeNoteFromCurrentFolder() {
     }
     saveAndClose();
 }
+function undoText() {
+    document.getElementById('note-textarea').focus();
+    document.execCommand('undo', false, null);
+    updateSongDisplay();
+}
+function saveAndClose() {
+    // 1. Limpiamos el contenido visual para que no haya rastro al abrir otra nota
+    const textarea = document.getElementById('note-textarea');
+    const display = document.getElementById('song-display');
+    
+    if (textarea) textarea.innerHTML = "";
+    if (display) display.innerHTML = "";
 
+    // 2. Quitamos la clase active para que la pantalla baje (desaparezca)
+    const editorView = document.getElementById('editor-view');
+    if (editorView) editorView.classList.remove('active');
+
+    // 3. Reseteamos el ID actual
+    currentNoteId = null;
+
+    // 4. Refrescamos la lista principal por si hubo cambios
+    if (typeof renderNotes === "function") renderNotes();
+}
 // --- 10. INICIALIZACIÓN ---
 
 window.onload = () => {
-    // Escucha en tiempo real de Firebase
+    // 1. ESCUCHA EN TIEMPO REAL DE FIREBASE
     notesCol.onSnapshot(snap => {
         notes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // Sincronizar cambios de nube a locales automáticamente
+        // Sincronizar localmente
         let offline = JSON.parse(localStorage.getItem('offlineNotes')) || {};
         notes.forEach(n => {
-            if (offline[n.id] && offline[n.id].content !== n.content) {
-                offline[n.id].content = n.content;
+            // Solo actualizamos si la nota no existe localmente o es más nueva
+            if (!offline[n.id] || n.updatedAt) { 
+                offline[n.id] = { ...n };
             }
         });
         localStorage.setItem('offlineNotes', JSON.stringify(offline));
 
         renderFolders();
         renderNotes();
-      // Lógica para el texto temporal (Placeholder)
-const editor = document.getElementById('note-textarea');
-
-editor.addEventListener('focus', function() {
-    if (this.innerText.trim() === "Escribe tu canción aqui...") {
-        this.innerText = ""; // Borra el texto al hacer clic
-        this.style.color = "black"; // Vuelve el color normal
-    }
-});
-
-editor.addEventListener('blur', function() {
-    if (this.innerText.trim() === "") {
-        this.innerText = "Escribe tu canción aqui..."; // Lo pone si lo dejas vacío
-        this.style.color = "gray"; // Color de texto temporal
-    }
-});
+    }, error => {
+        console.error("Error en Snapshot:", error);
     });
 
-    // Barra de formato flotante
+    // 2. BARRA DE FORMATO FLOTANTE (OPTIMIZADA MÓVIL)
     document.addEventListener('selectionchange', () => {
-    const sel = window.getSelection();
-    const toolbar = document.getElementById('floating-toolbar');
-    
-    if (toolbar && !sel.isCollapsed && sel.toString().trim() !== "") {
-        const range = sel.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
+        const sel = window.getSelection();
+        const toolbar = document.getElementById('floating-toolbar');
         
-        toolbar.style.display = 'flex';
-        
-        // Calcular centro
-        const toolbarWidth = toolbar.offsetWidth;
-        let left = rect.left + (rect.width / 2) - (toolbarWidth / 2);
-        let top = rect.top - 55; // Posición arriba del texto
+        // Verificamos que haya selección y que el foco esté en el editor
+        const isInsideEditor = sel.anchorNode && (sel.anchorNode.parentElement.id === 'note-textarea' || sel.anchorNode.id === 'note-textarea');
 
-        // Evitar que se salga de la pantalla (bordes)
-        if (left < 10) left = 10;
-        if (left + toolbarWidth > window.innerWidth) left = window.innerWidth - toolbarWidth - 10;
+        if (toolbar && !sel.isCollapsed && sel.toString().trim() !== "" && isInsideEditor) {
+            const range = sel.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            
+            toolbar.style.display = 'flex';
+            
+            const toolbarWidth = toolbar.offsetWidth;
+            // Calculamos posición con scroll actual para evitar saltos en APK
+            let left = rect.left + (rect.width / 2) - (toolbarWidth / 2);
+            let top = rect.top + window.scrollY - 70; // Más espacio para no chocar
 
-        toolbar.style.left = `${left}px`;
-        toolbar.style.top = `${top}px`;
-    } else if (toolbar) {
-        toolbar.style.display = 'none';
-    }
-});
-    // Enter en PIN
+            // Límites de pantalla
+            if (left < 10) left = 10;
+            if (left + toolbarWidth > window.innerWidth) left = window.innerWidth - toolbarWidth - 10;
+            // Si sale por arriba, la ponemos debajo de la selección
+            if (top < 50) top = rect.bottom + window.scrollY + 10;
+
+            toolbar.style.left = `${left}px`;
+            toolbar.style.top = `${top}px`;
+        } else if (toolbar) {
+            // No ocultamos si el clic fue en la propia barra (para que funcionen los botones)
+            if (!document.activeElement.closest('#floating-toolbar')) {
+                toolbar.style.display = 'none';
+            }
+        }
+    });
+
+    // 3. EVENTOS DE TECLADO
     document.getElementById('pin-input')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') verifyPin();
     });

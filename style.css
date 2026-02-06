@@ -1,15 +1,16 @@
 /* 1. VARIABLES Y RESET */
 :root {
-  --bg: #f2f2f7;
-  --card-bg: #ffffff;
-  --accent: #007aff;
-  --text: #1c1c1e;
-  --text-muted: #8e8e93;
+    --bg: #f2f2f7;
+    --card-bg: #ffffff;
+    --accent: #007aff;
+    --text: #1c1c1e;
+    --text-muted: #8e8e93;
+    --toolbar-bg: #333333; /* El gris de la imagen */
 }
 
 * {
     box-sizing: border-box;
-    touch-action: manipulation; /* Elimina zoom por doble toque */
+    touch-action: manipulation;
 }
 
 html, body {
@@ -17,38 +18,23 @@ html, body {
     padding: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden; /* Evita rebotes y que la app se "corra" */
+    overflow: hidden;
     position: fixed; 
     background-color: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-body, html {
-    margin: 0;
-    padding: 0;
-    width: 100vw;  /* 100% del ancho de la ventana */
-    height: 100vh; /* 100% del alto de la ventana */
-    overflow-x: hidden;
-}
+
 body {
     display: flex;
-    flex-direction: column; /* Asegura que los elementos se apilen verticalmente */
-    justify-content: flex-start; /* Alinea al inicio, no al centro */
-    margin: 0;
-    
-    /* Ocupa el 100% real del dispositivo */
+    flex-direction: column;
+    justify-content: flex-start;
     width: 100vw;
-    height: 100vh;
-    height: 100dvh; /* Unidad moderna que se ajusta con barras del navegador */
-
-    /* RESPETA ZONAS SEGURAS DINÁMICAMENTE */
-    /* En vertical usa el notch, en horizontal se ajusta solo */
+    height: 100dvh;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
-
-    box-sizing: border-box;
     overflow-x: hidden;
 }
 
@@ -60,6 +46,7 @@ body {
     background: var(--card-bg); 
     display: flex;
     flex-direction: column;
+    margin: 0 auto;
 }
 
 .app-container { 
@@ -69,10 +56,9 @@ body {
     -webkit-overflow-scrolling: touch;
 }
 
-/* 3. EL EDITOR (CORREGIDO PARA NO CHOCAR) */
+/* 3. EL EDITOR */
 .editor {
     position: fixed;
-    /* Forzamos a que empiece desde el borde físico superior */
     top: 0; 
     bottom: 0;
     left: 0;
@@ -80,41 +66,42 @@ body {
     display: flex;
     flex-direction: column;
     background-color: white;
-    z-index: 9999;
-    /* Quitamos el padding-top de aquí porque ya se lo pusimos a la toolbar-top */
-    padding-top: 0; 
+    z-index: 9000;
     padding-bottom: env(safe-area-inset-bottom, 20px);
 }
 
 #note-textarea {
     flex: 1;
     width: 100%;
-    padding: 20px;
+    padding: 25px;
     border: none;
     outline: none;
     font-family: 'Courier New', monospace;
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.6;
-    resize: none;
-    white-space: pre;
-    overflow-x: auto;
-    /* Espacio extra abajo para que el teclado no tape el final */
-    padding-bottom: 100px; 
+    background: #fff;
+    white-space: pre-wrap; 
+    word-wrap: break-word;
+    overflow-y: auto;
+    padding-bottom: 200px; 
 }
 
-/* 4. BARRAS DE HERRAMIENTAS DEL EDITOR */
+#note-textarea:empty:before {
+    content: "Escribe tu canción aqui...";
+    color: gray;
+    pointer-events: none;
+}
+
+/* 4. TOOLBAR SUPERIOR E INFERIOR */
 .toolbar-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 15px;
-    /* Esto añade el espacio necesario para que la hora no tape los botones */
     padding-top: env(safe-area-inset-top, 20px); 
-    /* Ajustamos el alto para que sea la suma del espacio seguro + 60px de barra */
-    height: calc(80px + env(safe-area-inset-top, 0px)); 
+    height: calc(70px + env(safe-area-inset-top, 0px)); 
     background: #fff;
     border-bottom: 0.5px solid #eee;
-    box-sizing: border-box;
 }
 
 .toolbar-bottom {
@@ -126,53 +113,110 @@ body {
     border-top: 0.5px solid #ddd;
     height: 60px;
 }
-@media (orientation: landscape) {
-    .toolbar-top {
-        /* Reducimos el padding superior en horizontal porque no hay notch lateral */
-        padding-top: env(safe-area-inset-top, 10px); 
-        height: auto;
-    }
-    
-    /* Si quieres ocultar elementos que estorben en horizontal */
-    .algun-elemento-estorboso {
-        display: none;
-}
-  .contenedor-principal {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-}
-/* 5. ELEMENTOS DE LA LISTA Y CHIPS */
-.note-card {
-    padding: 1.2rem;
-    border-bottom: 1px solid #f0f0f0;
-    cursor: pointer;
-}
 
-.folder-chip {
-    display: inline-flex;
+/* 5. DISEÑO DE LA CÁPSULA (EL QUE TE GUSTÓ) */
+#floating-toolbar {
+    display: none; /* Se activa con JS */
+    position: fixed;
+    background: var(--toolbar-bg);
+    border: 2px solid #ffffff; /* Borde blanco nítido */
+    border-radius: 60px;
+    padding: 2px 5px;
+    box-shadow: 0 15px 45px rgba(0,0,0,0.5);
+    z-index: 10000;
+    gap: 12px;
     align-items: center;
-    padding: 8px 12px ;
-    background: #f2f2f7;
-    border-radius: 20px;
-    margin-right: 3px;
-    font-size: 0.9rem;
-    white-space: nowrap;
+    display: flex;
+    pointer-events: all;
 }
 
-/* 6. MODO LECTURA / ATRIBLE */
+/* Botones circulares oscuros (B e I) */
+.btn-circle {
+    background: #1a1a1a;
+    border: none;
+    color: white;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+}
+
+/* El botón amarillo ABC */
+.btn-pill-yellow {
+    background: #ffd60a;
+    border: none;
+    color: black;
+    font-weight: 800;
+    font-size: 14px;
+    padding: 8px 18px;
+    border-radius: 30px;
+    cursor: pointer;
+    text-decoration: underline;
+    box-shadow: 0 4px 10px rgba(255, 214, 10, 0.2);
+}
+
+/* Botón X circular oscuro */
+.btn-close-circle {
+    background: #3a1a1a;
+    border: none;
+    color: #ff8a8a;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+/* Puntos de color con aro blanco */
+.dot-color {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid #ffffff;
+}
+.dot-color.black { background: #000000; }
+.dot-color.red { background: #d32f2f; }
+
+/* Separador vertical blanco */
+.toolbar-sep {
+    width: 2px;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.3);
+    margin: 0 4px;
+}
+
+#floating-toolbar button:active {
+    transform: scale(0.9);
+}
+
+/* 6. MODO LECTURA Y ATRIBLE */
 #song-display {
     white-space: pre-wrap;
     font-family: 'Courier New', monospace;
     padding: 20px;
     overflow-y: auto;
+    line-height: 1.6;
 }
 
 .chord-highlight {
     color: #ff9500 !important;
     font-weight: bold;
+    background: rgba(255, 149, 0, 0.1);
+    padding: 0 2px;
+    border-radius: 3px;
 }
 
-/* 7. BOTONES */
+/* 7. BOTONES DE ACCIÓN */
 .btn-add {
     position: fixed;
     right: 20px;
@@ -187,7 +231,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 999;
+    z-index: 8000;
 }
 
 .back-btn, .btn-action {
@@ -196,10 +240,15 @@ body {
     border: none;
     font-size: 1rem;
     font-weight: 600;
+    cursor: pointer;
 }
 
-/* 8. ORIENTACIÓN HORIZONTAL IPHONE */
+/* 8. ADAPTACIÓN HORIZONTAL */
 @media screen and (orientation: landscape) {
+    .toolbar-top {
+        padding-top: env(safe-area-inset-top, 10px); 
+        height: auto;
+    }
     body {
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);

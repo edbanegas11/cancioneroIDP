@@ -13,14 +13,12 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-firebase.firestore().enablePersistence()
+firebase.firestore().enablePersistence({ synchronizeTabs: true })
   .catch((err) => {
       if (err.code == 'failed-precondition') {
-          // Probablemente varias pestañas abiertas a la vez
-          console.log('Persistencia falló: Multi-pestaña');
+          console.warn("Persistencia falló: múltiples pestañas abiertas");
       } else if (err.code == 'unimplemented') {
-          // El navegador no lo soporta (muy raro en iPhone/Chrome moderno)
-          console.log('Persistencia no disponible');
+          console.warn("El navegador no soporta persistencia");
       }
   });
 

@@ -189,7 +189,9 @@ body {
 .btn-add {
     position: fixed;
     right: 20px;
-    bottom: calc(env(safe-area-inset-bottom, 60px) + 20px);
+    /* Ajuste para iPhone: Usamos 20px de base y sumamos el área segura */
+    /* Si no hay área segura (Android/PC), el valor es 0 */
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px)); 
     background: var(--accent);
     color: white;
     border: none;
@@ -201,6 +203,10 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 999;
+    
+    /* Evita que el botón desaparezca al hacer scroll rápido en iOS */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }
 
 .back-btn, .btn-action {
@@ -210,7 +216,10 @@ body {
     font-size: 1rem;
     font-weight: 600;
 }
-
+/* Desactiva el zoom por doble toque en elementos interactivos */
+.btn-add, .note-item, .category-chip, button {
+    touch-action: manipulation;
+}
 /* 8. ORIENTACIÓN HORIZONTAL IPHONE */
 @media screen and (orientation: landscape) {
     body {
@@ -218,3 +227,4 @@ body {
         padding-right: env(safe-area-inset-right);
     }
 }
+  

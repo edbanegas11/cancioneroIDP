@@ -125,7 +125,19 @@ function exitEditMode() {
 }
 
 // --- FUNCIONES DE VISUALIZACIÓN ---
-
+function stripMarkdown(text) {
+    if (!text) return "";
+    return text
+        .replace(/\*/g, '') // Quita todos los asteriscos
+        .replace(/_/g, '')  // Quita todos los guiones bajos
+        .replace(/=/g, '')  // Quita los signos de igual
+        .replace(/~|\[|\]/g, ''); // Opcional: Quita corchetes de acordes y tachados
+}
+function getCleanText(text) {
+    if (!text) return "";
+    // Quitamos asteriscos, guiones bajos, signos de igual y corchetes
+    return text.replace(/[*_=\[\]]/g, '').trim();
+}
 function updateSongDisplay() {
     const text = document.getElementById('note-textarea').value;
     const display = document.getElementById('song-display');
@@ -562,41 +574,43 @@ function renderNotes() {
     const list = document.getElementById('notes-list');
     if (!list) return;
 
-    // 1. CARGAR DATOS LOCALES
     let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
     let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
     let searchQuery = document.getElementById('search-input')?.value.toLowerCase() || "";
 
     let filtered = [];
 
-    // 2. DECIDIR DE DÓNDE SACAR LAS NOTAS
     if (currentFolder === "LISTA DE CANCIONES") {
-        // MODO NUBE: Usar la variable 'notes' de Firebase
         filtered = notes;
     } else {
-        // MODO LOCAL: Filtrar las que el usuario movió a esta carpeta específica
         const idsInFolder = Object.keys(localAssignments).filter(id => localAssignments[id] === currentFolder);
         filtered = idsInFolder.map(id => offlineNotes[id]).filter(n => n != null);
     }
 
-    // 3. APLICAR BUSCADOR (Si hay texto en el input de búsqueda)
+    // --- CAMBIO 1: BÚSQUEDA INTELIGENTE ---
+    // Buscamos sobre el texto limpio para que si buscas "Amor" encuentre "*Amor*"
     if (searchQuery) {
-        filtered = filtered.filter(n => (n.content || "").toLowerCase().includes(searchQuery));
+        filtered = filtered.filter(n => getCleanText(n.content).toLowerCase().includes(searchQuery));
     }
 
-    // 4. ORDENAR ALFABÉTICAMENTE
-    filtered.sort((a, b) => (a.content || "").localeCompare(b.content || ""));
+    // --- CAMBIO 2: ORDEN ALFABÉTICO SIN SÍMBOLOS ---
+    filtered.sort((a, b) => {
+        const textA = getCleanText(a.content).toLowerCase();
+        const textB = getCleanText(b.content).toLowerCase();
+        return textA.localeCompare(textB);
+    });
 
-    // 5. RENDERIZAR (Dibujar en pantalla)
     if (filtered.length === 0) {
         list.innerHTML = `<div style="text-align:center; color:gray; margin-top:2rem;">No hay canciones aquí</div>`;
         return;
     }
 
-    // Agrupar por letra (A, B, C...)
+    // --- CAMBIO 3: AGRUPAR POR LETRA REAL ---
     const groups = {};
     filtered.forEach(n => {
-        const char = n.content ? n.content.trim()[0].toUpperCase() : "N";
+        const cleanContent = getCleanText(n.content);
+        // Usamos la primera letra del texto LIMPIO
+        const char = cleanContent ? cleanContent[0].toUpperCase() : "N";
         if (!groups[char]) groups[char] = [];
         groups[char].push(n);
     });
@@ -605,11 +619,18 @@ function renderNotes() {
     Object.keys(groups).sort().forEach(letter => {
         list.innerHTML += `<div class="alphabet-header">${letter}</div>`;
         groups[letter].forEach(note => {
-            const lines = note.content.split('\n');
+            // --- CAMBIO 4: LIMPIAR EL TÍTULO Y SUBTÍTULO VISUAL ---
+            // Filtramos las líneas para quedarnos solo con las que tienen texto real
+const allLines = getCleanText(note.content).split('\n').map(l => l.trim()).filter(l => l !== "");
+
+const title = allLines[0] || "Nueva canción";
+// Ahora el subtítulo será la siguiente línea con texto, saltando cualquier espacio vacío
+const subtitle = allLines[1] || "Ver canción...";
+
             list.innerHTML += `
                 <div class="note-item" onclick="openNote('${note.id}')">
-                    <span style="font-weight:600; display:block;">${lines[0] || "Nueva nota"}</span>
-                    <span style="font-size:0.85rem; color:gray;">${lines[1] || "Ver nota..."}</span>
+                    <span style="font-weight:600; display:block;">${title}</span>
+                    <span style="font-size:0.85rem; color:gray;">${subtitle}</span>
                 </div>`;
         });
     });

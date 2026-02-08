@@ -38,7 +38,6 @@ let searchQuery = "";
 const PIN_CORRECTO = "019283";
 
 // --- FUNCIONES DE SEGURIDAD (PIN) ---
-
 function enterEditMode() {
     const modal = document.getElementById('pin-modal');
     const input = document.getElementById('pin-input');
@@ -124,20 +123,6 @@ function closePinModal() {
     document.getElementById('pin-modal').style.display = 'none';
 }
 
-function exitEditMode() {
-    // Guardar cambios al salir
-    const content = document.getElementById('note-textarea').value;
-    if (currentNoteId) {
-        notesCol.doc(currentNoteId).update({ 
-            content: content,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-    }
-    document.getElementById('edit-mode').style.display = 'none';
-    document.getElementById('view-mode').style.display = 'flex';
-    updateSongDisplay();
-}
-
 // --- FUNCIONES DE VISUALIZACIÓN ---
 function stripMarkdown(text) {
     if (!text) return "";
@@ -147,11 +132,13 @@ function stripMarkdown(text) {
         .replace(/=/g, '')  // Quita los signos de igual
         .replace(/~|\[|\]/g, ''); // Opcional: Quita corchetes de acordes y tachados
 }
+
 function getCleanText(text) {
     if (!text) return "";
     // Quitamos asteriscos, guiones bajos, signos de igual y corchetes
     return text.replace(/[*_=\[\]]/g, '').trim();
 }
+
 function updateSongDisplay() {
     const text = document.getElementById('note-textarea').value;
     const display = document.getElementById('song-display');
@@ -180,11 +167,9 @@ function updateSongDisplay() {
 }
 
 // --- FUNCIONES DE NOTAS ---
-
 function transpose(semitones) {
     const textarea = document.getElementById('note-textarea');
-    const songDisplay = document.getElementById('song-display');
-    if (!textarea || !songDisplay) return;
+    if (!textarea) return;
 
     let text = textarea.value;
     const scaleSharp = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -193,22 +178,59 @@ function transpose(semitones) {
     const useFlats = /\b[A-G]b\b|\b[A-G]b(m|7|maj)/.test(text);
     const chordRegex = /\b([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus\d?|add\d?|7|9|11|13|5|M|b5)?(?![a-zñóáéíú])/g;
 
-    const newText = text.replace(chordRegex, (fullMatch, baseNote, suffix) => {
-        let index = scaleSharp.indexOf(baseNote);
-        if (index === -1) index = scaleFlat.indexOf(baseNote);
-        if (index === -1) return fullMatch;
+    const lines = text.split('\n');
+    const newLines = lines.map(line => {
+        let newLine = line;
+        let match;
+        let diffAccumulated = 0; // Rastreamos cuánto se ha movido la línea
 
-        let newIndex = (index + semitones + 12) % 12;
-        const newBaseNote = useFlats ? scaleFlat[newIndex] : scaleSharp[newIndex];
-        return newBaseNote + (suffix || "");
+        // Usamos un array de matches para procesarlos de atrás hacia adelante
+        // o con un índice corregido para no perder la posición.
+        const matches = Array.from(line.matchAll(chordRegex));
+        
+        // Procesamos de derecha a izquierda para que los cambios de posición 
+        // no afecten a los acordes que aún no hemos procesado.
+        for (let i = matches.length - 1; i >= 0; i--) {
+            match = matches[i];
+            let originalChord = match[0];
+            let baseNote = match[1];
+            let suffix = match[2] || "";
+            let index = match.index;
+
+            // Calculamos nuevo acorde
+            let scaleIndex = scaleSharp.indexOf(baseNote);
+            if (scaleIndex === -1) scaleIndex = scaleFlat.indexOf(baseNote);
+            if (scaleIndex === -1) continue;
+
+            let newScaleIndex = (scaleIndex + semitones + 12) % 12;
+            let newBaseNote = useFlats ? scaleFlat[newScaleIndex] : scaleSharp[newScaleIndex];
+            let newChord = newBaseNote + suffix;
+
+            let diff = originalChord.length - newChord.length;
+
+            // Cortamos y pegamos la línea con el nuevo acorde
+            let before = newLine.substring(0, index);
+            let after = newLine.substring(index + originalChord.length);
+
+            if (diff < 0) {
+                // El acorde CRECIÓ (C -> C#). Si hay un espacio después, lo quitamos.
+                if (after.startsWith(" ")) {
+                    after = after.substring(1);
+                }
+            } else if (diff > 0) {
+                // El acorde SE ACHICÓ (C# -> D). Añadimos un espacio.
+                after = " " + after;
+            }
+
+            newLine = before + newChord + after;
+        }
+        return newLine;
     });
 
-    // IMPORTANTE: Solo actualizamos lo que se VE, no lo que está guardado en Firebase
-    textarea.value = newText;
-    updateSongDisplay(); 
-    
-    // NOTA: Aquí NO hay llamadas a Firebase. El cambio es 100% temporal.
+    textarea.value = newLines.join('\n');
+    updateSongDisplay();
 }
+
 async function createNewNote() {
     try {
         // 1. Creamos la nota en Firebase con contenido VACÍO
@@ -248,6 +270,8 @@ function openNote(id) {
     currentNoteId = id;
     const note = notes.find(n => n.id === id);
     if (!note) return;
+  const btnNew = document.querySelector('.btn-new');
+    if (btnNew) btnNew.style.display = 'none';
 
     document.getElementById('note-textarea').value = note.content;
     updateSongDisplay();
@@ -258,7 +282,6 @@ function openNote(id) {
 }
 
 // --- FUNCIONES DE CARPETAS Y OTROS ---
-
 function addNewFolder() {
     const name = prompt("Nombre de la nueva carpeta privada:");
     if (!name) return;
@@ -334,6 +357,7 @@ function openPicker() {
         renderFolderPicker();
     }
 }
+
 function undoText() {
     const textarea = document.getElementById('note-textarea');
     if (!textarea) return;
@@ -353,6 +377,7 @@ function undoText() {
         updateSongDisplay();
     }
 }
+
 function closePicker() { document.getElementById('folder-picker').style.display = 'none'; }
 
 function renderFolderPicker() {
@@ -378,6 +403,7 @@ function renderFolderPicker() {
             </div>`;
     }).join('');
 }
+
 async function saveAndClose() {
     const textarea = document.getElementById('note-textarea');
     const content = (textarea.value || "").trim();
@@ -415,6 +441,7 @@ async function saveAndClose() {
         renderNotes(); 
     }, 300);
 }
+
 async function exitEditMode() {
     const textarea = document.getElementById('note-textarea');
     const newContent = textarea.value.trim();
@@ -454,6 +481,7 @@ async function exitEditMode() {
     document.getElementById('edit-mode').style.display = 'none';
     document.getElementById('view-mode').style.display = 'flex';
 }
+
 function parseMarkdown(text) {
     return text
         // Negritas: *texto* -> <b>texto</b>
@@ -463,6 +491,7 @@ function parseMarkdown(text) {
         // Tachado: ~texto~ -> <del>$1</del>
         .replace(/~(.*?)~/g, '<del>$1</del>');
 }
+
 function toggleFolderLink(folderName) {
     if (!currentNoteId) return;
     
@@ -527,6 +556,7 @@ async function removeNoteFromCurrentFolder() {
         }
     }
 }
+
 function renderFolders() {
     const bar = document.getElementById('folder-bar');
     if (!bar) return;
@@ -565,6 +595,7 @@ function renderFolders() {
 
     if (window.lucide) lucide.createIcons();
 }
+
 function openEditMode() {
     const note = notes.find(n => n.id === currentNoteId);
     if (!note) return;
@@ -584,6 +615,7 @@ function openEditMode() {
     // 4. Inicializar iconos de Lucide (por el botón de deshacer)
     if (window.lucide) lucide.createIcons();
 }
+
 function renderNotes() {
     const list = document.getElementById('notes-list');
     if (!list) return;
@@ -667,6 +699,7 @@ function saveNoteLocally(note) {
     localStorage.setItem('offlineNotes', JSON.stringify(localNotes));
     console.log(`Nota "${note.id}" guardada para uso offline.`);
 }
+
 // Ejemplo de cómo cargar notas priorizando el almacenamiento local
 function loadNotes() {
     // Intentar cargar con la configuración de caché
@@ -681,6 +714,7 @@ function loadNotes() {
         console.error("Error al cargar notas:", error);
     });
 }
+
 function handleSearch() {
     const input = document.getElementById('search-input');
     if (input) {
@@ -690,12 +724,12 @@ function handleSearch() {
 }
 
 window.onload = () => {
-   
-
-    // 2. Mantenemos solo UNA conexión a las notas
     notesCol.onSnapshot(snap => {
         notes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
+      // FORZAR QUE EL BOTÓN APAREZCA AL CARGAR LA APP
+    const btnNew = document.querySelector('.btn-new');
+    if (btnNew) btnNew.style.display = 'flex';
         // --- SINCRONIZACIÓN AUTOMÁTICA OFFLINE ---
         let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
         let changed = false;
@@ -720,11 +754,11 @@ window.onload = () => {
         renderNotes(); // Esta función ahora ya sabe decidir si usa 'notes' o 'offlineNotes'
     });
     
-    // Escuchar Enter en el PIN (Recuerda que tu código es 019283 según tus notas)
     document.getElementById('pin-input')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') verifyPin();
     });
 };
+
 // --- EXPORTACIÓN ---
 window.enterEditMode = enterEditMode;
 window.verifyPin = verifyPin;

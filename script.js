@@ -103,7 +103,23 @@ function verifyPin() {
         document.getElementById('pin-input').value = "";
     }
 }
+let currentFontSize = 16; // Tamaño base que ya tienes
 
+function adjustZoom(amount) {
+    currentFontSize += amount;
+    
+    // Ponemos un límite mínimo para que no desaparezca la letra (ej. 8px)
+    if (currentFontSize < 8) currentFontSize = 8;
+    // Y un límite máximo
+    if (currentFontSize > 30) currentFontSize = 30;
+;
+    const editor = document.getElementById('note-textarea');
+    const visor = document.getElementById('song-display');
+
+    // Aplicamos el nuevo tamaño a ambos para mantener la simetría
+    if (editor) editor.style.fontSize = currentFontSize + 'px';
+    if (visor) visor.style.fontSize = currentFontSize + 'px';
+}
 function closePinModal() {
     document.getElementById('pin-modal').style.display = 'none';
 }

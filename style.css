@@ -85,20 +85,32 @@ body {
     padding-top: 0; 
     padding-bottom: env(safe-area-inset-bottom, 20px);
 }
-
+#note-textarea, #song-display {
+    /* Usamos una pila de fuentes que garantiza el mismo ancho por cada carácter */
+    font-family: 'Courier New', Courier, monospace !important;
+    font-variant-ligatures: none; /* Evita que caracteres se junten */
+    letter-spacing: 0px;          /* Evita que el sistema separe las letras */
+}
 #note-textarea {
     flex: 1;
     width: 100%;
     padding: 20px;
     border: none;
     outline: none;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
+    font-family: 'Courier New', monospace; 
+    font-size: 16px;
     line-height: 1.6;
     resize: none;
-    white-space: pre;
-    overflow-x: auto;
-    /* Espacio extra abajo para que el teclado no tape el final */
+
+    /* --- ESTO ACTIVA EL SCROLL HORIZONTAL --- */
+    white-space: pre;       /* No rompe la línea, sigue derecho */
+    overflow-x: auto;       /* Permite scroll lateral si el texto es largo */
+    overflow-y: auto;       /* Mantiene el scroll vertical */
+    
+    /* Evita que el navegador intente "ayudar" con el diseño */
+    word-wrap: normal;      
+    word-break: keep-all;
+    
     padding-bottom: 100px; 
 }
 
@@ -161,10 +173,14 @@ body {
 
 /* 6. MODO LECTURA / ATRIBLE */
 #song-display {
-    white-space: pre-wrap;
+    white-space: pre;       /* Ahora el visor también es infinito hacia los lados */
+    overflow-x: auto;       /* Permite al usuario deslizar para ver acordes largos */
     font-family: 'Courier New', monospace;
+    font-size: 16px; 
+    line-height: 1.6;
     padding: 20px;
-    overflow-y: auto;
+    color: var(--text);
+    background-color: var(--card-bg);
 }
   /* Estilo para las negritas dentro del visor */
 /* Estilo para las cursivas en el visor */
@@ -178,6 +194,10 @@ body {
 #song-display u {
     text-decoration: underline;
     text-decoration-color: var(--accent); /* Si tienes una variable de color acento */
+}
+  /* Mejora el scroll en dispositivos móviles (especialmente iOS) */
+#note-textarea, #song-display {
+    -webkit-overflow-scrolling: touch;
 }
 
 .chord-highlight {
@@ -225,6 +245,3 @@ body {
     body {
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
-    }
-}
-  

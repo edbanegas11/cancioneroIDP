@@ -221,7 +221,7 @@ body {
 .btn-new { 
     position: fixed; 
     bottom: calc(4rem + env(safe-area-inset-bottom, 0px)); 
-    right: 11rem; 
+    right: 18.5rem; 
     background: var(--folder-accent); 
     color: white; 
     width: 56px; 

@@ -1,247 +1,260 @@
-/* 1. VARIABLES Y RESET */
+/* 1. VARIABLES UNIFICADAS */
 :root {
-  --bg: #f2f2f7;
-  --card-bg: #ffffff;
-  --accent: #007aff;
-  --text: #1c1c1e;
-  --text-muted: #8e8e93;
+    --bg: #ffffff;
+    --secondary-bg: #f2f2f7;
+    --accent: #007aff; 
+    --folder-accent: #ff9500; 
+    --text-main: #1c1c1e;
+    --text-muted: #8e8e93;
+    --border: #e5e5ea;
+    --danger: #ff3b30;
 }
 
-* {
-    box-sizing: border-box;
-    touch-action: manipulation; /* Elimina zoom por doble toque */
+/* 2. RESET Y ESTRUCTURA BASE (Optimizado para móvil) */
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+    touch-action: manipulation; 
 }
 
 html, body {
-    margin: 0;
-    padding: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden; /* Evita rebotes y que la app se "corra" */
-    position: fixed; 
-    background-color: var(--bg);
-    color: var(--text);
+    height: 100dvh;
+    overflow: hidden;
+    position: fixed; /* Evita rebotes en iOS */
+    background-color: var(--secondary-bg);
+    color: var(--text-main);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-body, html {
-    margin: 0;
-    padding: 0;
-    width: 100vw;  /* 100% del ancho de la ventana */
-    height: 100vh; /* 100% del alto de la ventana */
-    overflow-x: hidden;
-}
+
 body {
     display: flex;
-    flex-direction: column; /* Asegura que los elementos se apilen verticalmente */
-    justify-content: flex-start; /* Alinea al inicio, no al centro */
-    margin: 0;
-    
-    /* Ocupa el 100% real del dispositivo */
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh; /* Unidad moderna que se ajusta con barras del navegador */
-
-    /* RESPETA ZONAS SEGURAS DINÁMICAMENTE */
-    /* En vertical usa el notch, en horizontal se ajusta solo */
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
-
-    box-sizing: border-box;
-    overflow-x: hidden;
-}
-
-/* 2. CONTENEDORES PRINCIPALES */
-#root { 
-    width: 100%; 
-    max-width: 500px; 
-    height: 100%; 
-    background: var(--card-bg); 
-    display: flex;
     flex-direction: column;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
 
 .app-container { 
-    padding: 1.5rem; 
-    height: 100%;
+    width: 100%; 
+    max-width: 430px; 
+    height: 100%; 
+    background: var(--bg); 
+    margin: 0 auto;
+    position: relative; 
+    overflow: hidden; 
+    display: flex; 
+    flex-direction: column; 
+}
+
+/* 3. LISTA DE NOTAS Y CHIPS */
+.folder-section { 
+    padding: 0.5rem; 
+    display: flex; 
+    gap: 8px; 
+    overflow-x: auto; 
+    scrollbar-width: none; 
+}
+.folder-section::-webkit- scrollbar { display: none; }
+
+.folder-chip { 
+    padding: 6px 14px; 
+    border-radius: 20px; 
+    font-size: 0.85rem; 
+    white-space: nowrap; 
+    cursor: pointer; 
+    background: #f0f0f0; 
+    transition: 0.3s; 
+    border: none; 
+    display: flex;
+    align-items: center; 
+}
+
+.folder-chip.active { 
+    background: var(--folder-accent); 
+    color: white; 
+}
+
+.notes-list { 
+    flex: 1; 
     overflow-y: auto; 
+    padding: 0 1.5rem 5rem; 
     -webkit-overflow-scrolling: touch;
 }
 
-/* 3. EL EDITOR (CORREGIDO PARA NO CHOCAR) */
-.editor {
-    position: fixed;
-    /* Forzamos a que empiece desde el borde físico superior */
-    top: 0; 
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    background-color: white;
-    z-index: 9999;
-    /* Quitamos el padding-top de aquí porque ya se lo pusimos a la toolbar-top */
-    padding-top: 0; 
+.alphabet-header { 
+    font-size: 0.8rem; 
+    font-weight: 700; 
+    color: var(--folder-accent); 
+    border-bottom: 0.5px solid var(--border); 
+    padding: 15px 0 5px; 
+    text-transform: uppercase; 
+}
+
+.note-item { 
+    padding: 12px 0; 
+    border-bottom: 0.5px solid #f2f2f2; 
+    cursor: pointer; 
+}
+
+/* 4. EDITOR Y VISOR (CORREGIDO) */
+#editor-view { 
+    position: absolute; 
+    inset: 0; 
+    background: var(--bg); 
+    display: flex; 
+    flex-direction: column; 
+    z-index: 10; 
+    transform: translateY(100%); 
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     padding-bottom: env(safe-area-inset-bottom, 20px);
 }
-#note-textarea, #song-display {
-    /* Usamos una pila de fuentes que garantiza el mismo ancho por cada carácter */
-    font-family: 'Courier New', Courier, monospace !important;
-    font-variant-ligatures: none; /* Evita que caracteres se junten */
-    letter-spacing: 0px;          /* Evita que el sistema separe las letras */
+
+#editor-view.active { transform: translateY(0); }
+
+/* BARRAS DE HERRAMIENTAS */
+.toolbar-top { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start; 
+    padding: 0 5px;
+    padding-top: 50px;
+    height: 90px;
+    border-bottom: 0.5px solid var(--border); 
+    background: #fff; 
 }
-#note-textarea {
-    flex: 1;
-    width: 100%;
-    padding: 20px;
-    border: none;
-    outline: none;
-    font-family: 'Courier New', monospace; 
+
+.toolbar-bottom { 
+    display: flex; 
+    justify-content: space-around; 
+    align-items: center; 
+    padding: 10px 15px; 
+    background: #fafafa; 
+    border-top: 0.5px solid #eee; 
+    min-height: 60px; 
+}
+
+/* 5. BOTONES Y CONTROLES (ZOOM Y TONO) */
+.btn-icon, .btn-text { 
+    background: none; 
+    border: none; 
+    color: var(--accent); 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+}
+
+.btn-text { font-weight: 600; font-size: 1rem; }
+
+.transpose-mini, .zoom-controls { 
+    display: flex; 
+    align-items: center; 
+    background: #f2f2f7; 
+    border-radius: 10px; 
+    padding: 0px 8px; 
+    gap: 20px; 
+}
+
+.btn-transpose-mini, .btn-zoom-blue { 
+    background: none; 
+    border: none; 
+    font-weight: bold; 
+    color: var(--accent); 
+    cursor: pointer; 
+    padding: 2px; 
+    display: flex;
+    align-items: center;
+}
+
+.btn-transpose-mini { font-size: 1.2rem; }
+
+.btn-zoom-blue i {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.5px;
+}
+
+.transpose-label { font-size: 0.75rem; font-weight: 700; color: #333; }
+
+/* 6. ÁREA DE TEXTO Y VISOR (FUENTE MONOESPACIADA) */
+#song-display, #note-textarea {
+    font-family: 'Courier New', Courier, monospace !important;
     font-size: 16px;
     line-height: 1.6;
-    resize: none;
-
-    /* --- ESTO ACTIVA EL SCROLL HORIZONTAL --- */
-    white-space: pre;       /* No rompe la línea, sigue derecho */
-    overflow-x: auto;       /* Permite scroll lateral si el texto es largo */
-    overflow-y: auto;       /* Mantiene el scroll vertical */
-    
-    /* Evita que el navegador intente "ayudar" con el diseño */
-    word-wrap: normal;      
-    word-break: keep-all;
-    
-    padding-bottom: 100px; 
-}
-
-/* 4. BARRAS DE HERRAMIENTAS DEL EDITOR */
-.toolbar-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 15px;
-    /* Esto añade el espacio necesario para que la hora no tape los botones */
-    padding-top: env(safe-area-inset-top, 20px); 
-    /* Ajustamos el alto para que sea la suma del espacio seguro + 60px de barra */
-    height: calc(80px + env(safe-area-inset-top, 0px)); 
-    background: #fff;
-    border-bottom: 0.5px solid #eee;
-    box-sizing: border-box;
-}
-
-.toolbar-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 20px;
-    background: #f9f9f9;
-    border-top: 0.5px solid #ddd;
-    height: 60px;
-}
-@media (orientation: landscape) {
-    .toolbar-top {
-        /* Reducimos el padding superior en horizontal porque no hay notch lateral */
-        padding-top: env(safe-area-inset-top, 10px); 
-        height: auto;
-    }
-    
-    /* Si quieres ocultar elementos que estorben en horizontal */
-    .algun-elemento-estorboso {
-        display: none;
-}
-  .contenedor-principal {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-}
-/* 5. ELEMENTOS DE LA LISTA Y CHIPS */
-.note-card {
-    padding: 1.2rem;
-    border-bottom: 1px solid #f0f0f0;
-    cursor: pointer;
-}
-
-.folder-chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 8px 12px ;
-    background: #f2f2f7;
-    border-radius: 20px;
-    margin-right: 3px;
-    font-size: 0.9rem;
-    white-space: nowrap;
-}
-
-/* 6. MODO LECTURA / ATRIBLE */
-#song-display {
-    white-space: pre;       /* Ahora el visor también es infinito hacia los lados */
-    overflow-x: auto;       /* Permite al usuario deslizar para ver acordes largos */
-    font-family: 'Courier New', monospace;
-    font-size: 16px; 
-    line-height: 1.6;
-    padding: 20px;
-    color: var(--text);
-    background-color: var(--card-bg);
-}
-  /* Estilo para las negritas dentro del visor */
-/* Estilo para las cursivas en el visor */
-#song-display i {
-    font-style: italic;
-    color: #444; /* Un gris oscuro para diferenciarlo del texto normal */
-    opacity: 0.9;
-}
-
-/* Estilo para el subrayado */
-#song-display u {
-    text-decoration: underline;
-    text-decoration-color: var(--accent); /* Si tienes una variable de color acento */
-}
-  /* Mejora el scroll en dispositivos móviles (especialmente iOS) */
-#note-textarea, #song-display {
     -webkit-overflow-scrolling: touch;
 }
 
-.chord-highlight {
-    color: #ff9500 !important;
-    font-weight: bold;
+#song-display { 
+    flex: 1; 
+    padding: 20px; 
+    overflow: auto; 
+    white-space: pre; 
+    background-color: var(--bg);
 }
 
-/* 7. BOTONES */
-.btn-add {
-    position: fixed;
-    right: 20px;
-    /* Ajuste para iPhone: Usamos 20px de base y sumamos el área segura */
-    /* Si no hay área segura (Android/PC), el valor es 0 */
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px)); 
-    background: var(--accent);
-    color: white;
-    border: none;
-    width: 55px;
-    height: 55px;
-    border-radius: 50%;
-    box-shadow: 0 4px 12px rgba(0,122,255,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 999;
-    
-    /* Evita que el botón desaparezca al hacer scroll rápido en iOS */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
+#note-textarea { 
+    flex: 1; 
+    border: none; 
+    outline: none; 
+    padding: 1.5rem; 
+    resize: none; 
+    white-space: pre; 
+    overflow: auto;
+    padding-bottom: 100px;
 }
 
-.back-btn, .btn-action {
-    color: var(--accent);
-    background: none;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
+.chord-highlight { color: var(--folder-accent); font-weight: 800; }
+
+/* 7. MODALES Y OTROS */
+#pin-modal { 
+    position: absolute; 
+    inset: 0; 
+    background: rgba(255,255,255,0.98); 
+    z-index: 2000; 
+    display: none; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    backdrop-filter: blur(10px); 
 }
-/* Desactiva el zoom por doble toque en elementos interactivos */
-.btn-add, .note-item, .category-chip, button {
-    touch-action: manipulation;
+
+.btn-new { 
+    position: fixed; 
+    bottom: calc(4rem + env(safe-area-inset-bottom, 0px)); 
+    right: 11rem; 
+    background: var(--folder-accent); 
+    color: white; 
+    width: 56px; 
+    height: 56px; 
+    border-radius: 50%; 
+    border: none; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    z-index: 99;
 }
-/* 8. ORIENTACIÓN HORIZONTAL IPHONE */
+
+#folder-picker { 
+    display: none; 
+    position: absolute; 
+    inset: 0; 
+    background: rgba(0,0,0,0.4); 
+    z-index: 30; 
+    align-items: flex-end; 
+}
+
+.picker-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 2rem; }
+
+/* 8. AJUSTE HORIZONTAL */
 @media screen and (orientation: landscape) {
-    body {
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
+    .toolbar-top {
+        padding-top: env(safe-area-inset-top, 10px); 
+        height: auto;
+        min-height: 50px;
+    }
+}
+/* Corrección en style.css */
+#editor-view.active ~ .btn-new {
+    display: none !important;
+}

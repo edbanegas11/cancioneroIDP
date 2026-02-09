@@ -108,7 +108,7 @@ html, body {
     background: var(--bg); 
     display: flex; 
     flex-direction: column; 
-    z-index: 1200; 
+    z-index: 1000; 
     /* Cambiamos a 100dvh para asegurar que llegue hasta abajo del todo */
     height: 100dvh; 
     transform: translateY(100%); 
@@ -206,7 +206,7 @@ html, body {
     position: absolute; 
     inset: 0; 
     background: rgba(0,0,0,0.4); 
-    z-index: 300; 
+    z-index: 1000; 
     align-items: flex-end; 
 }
 .picker-content { 

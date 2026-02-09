@@ -32,7 +32,7 @@ html, body {
 /* 3. CONTENEDOR MAESTRO (El que manda en la posición del botón) */
 .app-container { 
     width: 100%; 
-    max-width: 430px; 
+    max-width: 100px; 
     height: 100vh; 
     height: 100dvh; /* Altura dinámica para navegadores móviles */
     background: var(--bg); 

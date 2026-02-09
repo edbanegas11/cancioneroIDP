@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-title" content="CANCIONERO">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -54,33 +54,30 @@
     <div id="editor-view">
         <div id="view-mode" style="display: flex; flex-direction: column; height: 100%;">
             <div class="toolbar-top">
-                <button onclick="saveAndClose()" class="btn-icon">
-                    <i data-lucide="chevron-left"></i>
-                </button>
+    <div style="flex: 0 0 auto;">
+        <button onclick="saveAndClose()" class="btn-icon">
+            <i data-lucide="chevron-left"></i>
+        </button>
+    </div>
 
-                <div style="display: flex; gap: 20px;">
-                    <div class="transpose-mini">
-                        <button onclick="transpose(-1)" class="btn-transpose-mini">-½</button>
-                        <span class="transpose-label">TONO</span>
-                        <button onclick="transpose(1)" class="btn-transpose-mini">+½</button>
-                    </div>
+    <div style="display: flex; gap: 8px; flex: 0 1 auto; justify-content: center; scale: 0.9;">
+        <div class="transpose-mini">
+            <button onclick="transpose(-1)" class="btn-transpose-mini">-½</button>
+            <span class="transpose-label">TONO</span>
+            <button onclick="transpose(1)" class="btn-transpose-mini">+½</button>
+        </div>
+        <div class="zoom-controls">
+            <button class="btn-zoom-blue" onclick="adjustZoom(-2)"><i data-lucide="zoom-out"></i></button>
+            <button class="btn-zoom-blue" onclick="adjustZoom(2)"><i data-lucide="zoom-in"></i></button>
+        </div>
+    </div>
 
-                    <div class="zoom-controls">
-                        <button class="btn-zoom-blue" onclick="adjustZoom(-2)">
-                            <i data-lucide="zoom-out"></i>
-                        </button>
-                        <button class="btn-zoom-blue" onclick="adjustZoom(2)">
-                            <i data-lucide="zoom-in"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 2px;">
-                    <button onclick="openPicker()" class="btn-icon" style="color: #8e8e93;"><i data-lucide="folder-tree"></i></button>
-                    <button onclick="secureAction('delete')" class="btn-icon" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
-                    <button onclick="secureAction('edit')" class="btn-icon" style="color: var(--accent);"><i data-lucide="edit-3"></i></button>
-                </div>
-            </div>
+    <div style="display: flex; gap: 0px; flex: 0 0 auto;">
+        <button onclick="openPicker()" class="btn-icon" style="color: #8e8e93;"><i data-lucide="folder-tree"></i></button>
+        <button onclick="secureAction('delete')" class="btn-icon" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
+        <button onclick="secureAction('edit')" class="btn-icon" style="color: var(--accent);"><i data-lucide="edit-3"></i></button>
+    </div>
+</div>
 
             <div id="song-display"></div>
         </div>
@@ -134,4 +131,3 @@
 </script>
 </body>
 </html>
-

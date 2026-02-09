@@ -97,8 +97,9 @@ html, body {
     border-bottom: 0.5px solid var(--border); 
     background: #fff; 
     min-height: calc(50px + env(safe-area-inset-top, 0px));
-    width: 10%;
+    width: 60%;
     gap: 0px;
+    flex-shrink: 0;
     flex-wrap: nowrap;
 }
 #editor-view { 
@@ -123,17 +124,21 @@ html, body {
     justify-content: space-around; 
     align-items: center; 
     
-    /* Ajuste de padding: 10px arriba, 15px lados */
-    /* Y abajo usamos un valor base menor (5px) + el área segura */
-    padding: 10px 15px calc(env(safe-area-inset-bottom, 0px) + 5px); 
+    /* Espacio arriba de los botones */
+    padding-top: 12px;
+    padding-left: 20px;
+    padding-right: 20px;
+    
+    /* EL TRUCO: env(safe-area-inset-bottom) detecta la zona de la "rayita" del iPhone.
+       Le sumamos un poco más para que no quede pegado al cristal inferior. */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0px); 
     
     background: #fafafa; 
     border-top: 0.5px solid #eee; 
+    width: 100%;
     
-    /* Aseguramos que la barra siempre tenga un ancho total */
-    width: 100%; 
-    /* Esto hace que la barra sea la que "toque" el fondo del iPhone */
-    min-height: calc(50px + env(safe-area-inset-bottom, 0px));
+    /* Forzamos que la barra crezca hacia abajo para rellenar el hueco gris */
+    min-height: calc(60px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ESTILOS DE TEXTO */
@@ -243,8 +248,8 @@ html, body {
     align-items: center; 
     background: #f2f2f7; 
     border-radius: 10px; 
-    padding: 0px 8px; 
-    gap: 20px; 
+    padding: 0px 5px; 
+    gap: 10px; 
 }
 
 .btn-transpose-mini, .btn-zoom-blue { 

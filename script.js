@@ -148,13 +148,14 @@ function getCleanText(text) {
     return text.replace(/[*_=\[\]]/g, '').trim();
 }
 
+
 function updateSongDisplay() {
     const text = document.getElementById('note-textarea').value;
     const display = document.getElementById('song-display');
     if (!display) return;
 
     // Regex de acordes (la tuya)
-    const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus4|sus2|sus|add9|13|11|9|7|5|4|2|M)?(?![a-záéíóú])(?![A-Z])/g;
+    const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)([a-zA-Z0-9\+\-\^\(\)]*)(?![a-záéíóú])(?![A-Z])/g;
 
     display.innerHTML = text.split('\n').map(line => {
         // --- PASO 1: Formato de texto primero ---
@@ -185,53 +186,52 @@ function transpose(semitones) {
     const scaleFlat = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
     const useFlats = /\b[A-G]b\b|\b[A-G]b(m|7|maj)/.test(text);
-    const chordRegex = /\b([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus\d?|add\d?|7|9|11|13|5|M|b5)?(?![a-zñóáéíú])/g;
+    
+    // Regex que captura la nota (1) y el sufijo (2) por separado
+    const chordRegex = /\b([A-G][#b]?)([a-zA-Z0-9\+\-\^\(\)]*)(?![a-zñóáéíóú])/g;
 
     const lines = text.split('\n');
     const newLines = lines.map(line => {
         let newLine = line;
-        let match;
-        let diffAccumulated = 0; // Rastreamos cuánto se ha movido la línea
-
-        // Usamos un array de matches para procesarlos de atrás hacia adelante
-        // o con un índice corregido para no perder la posición.
         const matches = Array.from(line.matchAll(chordRegex));
-        
-        // Procesamos de derecha a izquierda para que los cambios de posición 
-        // no afecten a los acordes que aún no hemos procesado.
+
+        // Procesamos de atrás hacia adelante
         for (let i = matches.length - 1; i >= 0; i--) {
-            match = matches[i];
-            let originalChord = match[0];
+            let match = matches[i];
+            let originalFull = match[0];
             let baseNote = match[1];
             let suffix = match[2] || "";
             let index = match.index;
 
-            // Calculamos nuevo acorde
             let scaleIndex = scaleSharp.indexOf(baseNote);
             if (scaleIndex === -1) scaleIndex = scaleFlat.indexOf(baseNote);
             if (scaleIndex === -1) continue;
 
             let newScaleIndex = (scaleIndex + semitones + 12) % 12;
             let newBaseNote = useFlats ? scaleFlat[newScaleIndex] : scaleSharp[newScaleIndex];
-            let newChord = newBaseNote + suffix;
+            
+            // CONSTRUCCIÓN ATÓMICA: La nota y el m7 se pegan AQUÍ
+            let newChordFull = newBaseNote + suffix;
 
-            let diff = originalChord.length - newChord.length;
-
-            // Cortamos y pegamos la línea con el nuevo acorde
+            let diff = originalFull.length - newChordFull.length;
             let before = newLine.substring(0, index);
-            let after = newLine.substring(index + originalChord.length);
+            let after = newLine.substring(index + originalFull.length);
 
             if (diff < 0) {
-                // El acorde CRECIÓ (C -> C#). Si hay un espacio después, lo quitamos.
-                if (after.startsWith(" ")) {
+                // El acorde creció: quitamos espacios del 'after'
+                let toRemove = Math.abs(diff);
+                while (toRemove > 0 && after.startsWith(" ")) {
                     after = after.substring(1);
+                    toRemove--;
                 }
             } else if (diff > 0) {
-                // El acorde SE ACHICÓ (C# -> D). Añadimos un espacio.
-                after = " " + after;
+                // El acorde se achicó: añadimos espacios al 'after'
+                // Esto garantiza que el espacio quede FUERA del acorde
+                after = " ".repeat(diff) + after;
             }
 
-            newLine = before + newChord + after;
+            // Unimos todo: [Texto anterior] + [Acorde Pegado] + [Espacios + Texto posterior]
+            newLine = before + newChordFull + after;
         }
         return newLine;
     });

@@ -93,10 +93,10 @@ html, body {
     justify-content: space-between; 
     align-items: center; 
     /* Aumentamos padding superior para alejar de la cámara */
-    padding: calc(env(safe-area-inset-top, 20px) + 20px) 10px 0px 0px; 
+    padding: calc(env(safe-area-inset-top, 20px) + 5px) 10px 0px 0px; 
     border-bottom: 0.5px solid var(--border); 
     background: #fff; 
-    min-height: calc(70px + env(safe-area-inset-top, 0px));
+    min-height: calc(50px + env(safe-area-inset-top, 0px));
     width: 100%;
     gap: 0px;
     flex-wrap: nowrap;

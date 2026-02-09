@@ -155,7 +155,7 @@ function updateSongDisplay() {
     if (!display) return;
 
     // Regex de acordes (la tuya)
-    const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)([a-zA-Z0-9\+\-\^\(\)]*)(?![a-záéíóú])(?![A-Z])/g;
+    const chordRegex = /(?<![a-zA-Z])([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus4|sus2|sus|add9|13|11|9|7|5|4|2|M)?(?![a-záéíóú])(?![A-Z])/g;
 
     display.innerHTML = text.split('\n').map(line => {
         // --- PASO 1: Formato de texto primero ---
@@ -177,67 +177,34 @@ function updateSongDisplay() {
 }
 
 // --- FUNCIONES DE NOTAS ---
+
 function transpose(semitones) {
     const textarea = document.getElementById('note-textarea');
-    if (!textarea) return;
+    const songDisplay = document.getElementById('song-display');
+    if (!textarea || !songDisplay) return;
 
     let text = textarea.value;
     const scaleSharp = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const scaleFlat = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
     const useFlats = /\b[A-G]b\b|\b[A-G]b(m|7|maj)/.test(text);
-    
-    // Regex que captura la nota (1) y el sufijo (2) por separado
-    const chordRegex = /\b([A-G][#b]?)([a-zA-Z0-9\+\-\^\(\)]*)(?![a-zñóáéíóú])/g;
+    const chordRegex = /\b([A-G][#b]?)(m|maj7|maj|min|dim|aug|sus\d?|add\d?|7|9|11|13|5|M|b5)?(?![a-zñóáéíú])/g;
 
-    const lines = text.split('\n');
-    const newLines = lines.map(line => {
-        let newLine = line;
-        const matches = Array.from(line.matchAll(chordRegex));
+    const newText = text.replace(chordRegex, (fullMatch, baseNote, suffix) => {
+        let index = scaleSharp.indexOf(baseNote);
+        if (index === -1) index = scaleFlat.indexOf(baseNote);
+        if (index === -1) return fullMatch;
 
-        // Procesamos de atrás hacia adelante
-        for (let i = matches.length - 1; i >= 0; i--) {
-            let match = matches[i];
-            let originalFull = match[0];
-            let baseNote = match[1];
-            let suffix = match[2] || "";
-            let index = match.index;
-
-            let scaleIndex = scaleSharp.indexOf(baseNote);
-            if (scaleIndex === -1) scaleIndex = scaleFlat.indexOf(baseNote);
-            if (scaleIndex === -1) continue;
-
-            let newScaleIndex = (scaleIndex + semitones + 12) % 12;
-            let newBaseNote = useFlats ? scaleFlat[newScaleIndex] : scaleSharp[newScaleIndex];
-            
-            // CONSTRUCCIÓN ATÓMICA: La nota y el m7 se pegan AQUÍ
-            let newChordFull = newBaseNote + suffix;
-
-            let diff = originalFull.length - newChordFull.length;
-            let before = newLine.substring(0, index);
-            let after = newLine.substring(index + originalFull.length);
-
-            if (diff < 0) {
-                // El acorde creció: quitamos espacios del 'after'
-                let toRemove = Math.abs(diff);
-                while (toRemove > 0 && after.startsWith(" ")) {
-                    after = after.substring(1);
-                    toRemove--;
-                }
-            } else if (diff > 0) {
-                // El acorde se achicó: añadimos espacios al 'after'
-                // Esto garantiza que el espacio quede FUERA del acorde
-                after = " ".repeat(diff) + after;
-            }
-
-            // Unimos todo: [Texto anterior] + [Acorde Pegado] + [Espacios + Texto posterior]
-            newLine = before + newChordFull + after;
-        }
-        return newLine;
+        let newIndex = (index + semitones + 12) % 12;
+        const newBaseNote = useFlats ? scaleFlat[newIndex] : scaleSharp[newIndex];
+        return newBaseNote + (suffix || "");
     });
 
-    textarea.value = newLines.join('\n');
-    updateSongDisplay();
+    // IMPORTANTE: Solo actualizamos lo que se VE, no lo que está guardado en Firebase
+    textarea.value = newText;
+    updateSongDisplay(); 
+    
+    // NOTA: Aquí NO hay llamadas a Firebase. El cambio es 100% temporal.
 }
 
 async function createNewNote() {

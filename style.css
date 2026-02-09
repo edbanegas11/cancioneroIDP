@@ -32,7 +32,7 @@ html, body {
 /* 3. CONTENEDOR MAESTRO (El que manda en la posición del botón) */
 .app-container { 
     width: 100%; 
-    max-width: 100px; 
+    max-width: 430px; 
     height: 100vh; 
     height: 100dvh; /* Altura dinámica para navegadores móviles */
     background: var(--bg); 
@@ -87,17 +87,6 @@ html, body {
 }
 
 /* 5. EDITOR Y VISOR (TRANSICIÓN TIPO IPHONE) */
-#editor-view { 
-    position: absolute; 
-    inset: 0; 
-    background: var(--bg); 
-    display: flex; 
-    flex-direction: column; 
-    z-index: 100; 
-    transform: translateY(100%); 
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-#editor-view.active { transform: translateY(0); }
 
 /* BARRAS DE HERRAMIENTAS */
 .toolbar-top { 
@@ -105,21 +94,46 @@ html, body {
     justify-content: space-between; 
     align-items: center; 
     /* Aumentamos padding superior para alejar de la cámara */
-    padding: calc(env(safe-area-inset-top, 20px) + 40px) 10px 0px 0px; 
+    padding: calc(env(safe-area-inset-top, 20px) + 20px) 10px 0px 0px; 
     border-bottom: 0.5px solid var(--border); 
     background: #fff; 
     min-height: calc(70px + env(safe-area-inset-top, 0px));
     width: 100%;
     gap: 0px; /
 }
+#editor-view { 
+    position: absolute; 
+    inset: 0; 
+    background: var(--bg); 
+    display: flex; 
+    flex-direction: column; 
+    z-index: 100; 
+    /* Cambiamos a 100dvh para asegurar que llegue hasta abajo del todo */
+    height: 100dvh; 
+    transform: translateY(100%); 
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Evita que el editor se desplace completo al abrir el teclado */
+    overflow: hidden; 
+}
+
+#editor-view.active { transform: translateY(0); }
 
 .toolbar-bottom { 
     display: flex; 
     justify-content: space-around; 
     align-items: center; 
-    padding: 10px 15px calc(10px + env(safe-area-inset-bottom, 0px)); 
+    
+    /* Ajuste de padding: 10px arriba, 15px lados */
+    /* Y abajo usamos un valor base menor (5px) + el área segura */
+    padding: 10px 15px calc(env(safe-area-inset-bottom, 0px) + 5px); 
+    
     background: #fafafa; 
     border-top: 0.5px solid #eee; 
+    
+    /* Aseguramos que la barra siempre tenga un ancho total */
+    width: 100%; 
+    /* Esto hace que la barra sea la que "toque" el fondo del iPhone */
+    min-height: calc(50px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ESTILOS DE TEXTO */

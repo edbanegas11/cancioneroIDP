@@ -327,15 +327,30 @@ function deleteFolder(folderName) {
     if (!confirm(`¿Borrar carpeta local "${folderName}"?`)) return;
 
     let privateFolders = JSON.parse(localStorage.getItem('myPrivateFolders')) || [];
+    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
+
+    // 1. Quitar la carpeta de la lista de carpetas
     privateFolders = privateFolders.filter(f => f !== folderName);
     localStorage.setItem('myPrivateFolders', JSON.stringify(privateFolders));
 
-    // También limpiamos las asignaciones de notas en esa carpeta
-    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    // 2. Recorrer todas las notas asignadas
     for (let id in localAssignments) {
-        if (localAssignments[id] === folderName) delete localAssignments[id];
+        if (Array.isArray(localAssignments[id])) {
+            // Quitar esta carpeta de la lista de la nota
+            localAssignments[id] = localAssignments[id].filter(f => f !== folderName);
+
+            // Si la nota se quedó sin carpetas, la borramos por completo
+            if (localAssignments[id].length === 0) {
+                delete localAssignments[id];
+                delete offlineNotes[id];
+            }
+        }
     }
+
+    // 3. Guardar cambios y refrescar
     localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
+    localStorage.setItem('offlineNotes', JSON.stringify(offlineNotes));
 
     renderFolders();
     selectFolder('LISTA DE CANCIONES');
@@ -504,55 +519,43 @@ function parseMarkdown(text) {
 function toggleFolderLink(folderName) {
     if (!currentNoteId) return;
 
-    // 1. Cargamos y validamos el JSON
-    let localAssignments = {};
-    try {
-        localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-    } catch (e) {
-        console.error("Error al leer localStorage, reiniciando asignaciones");
-        localAssignments = {};
-    }
+    let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+    let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
 
-    // 2. Normalización: Convertir string viejo a Array si es necesario
     if (localAssignments[currentNoteId] && !Array.isArray(localAssignments[currentNoteId])) {
         localAssignments[currentNoteId] = [localAssignments[currentNoteId]];
     }
 
-    // 3. Inicializar si no existe
-    if (!localAssignments[currentNoteId]) {
-        localAssignments[currentNoteId] = [];
-    }
+    if (!localAssignments[currentNoteId]) localAssignments[currentNoteId] = [];
 
     const folderIndex = localAssignments[currentNoteId].indexOf(folderName);
 
-    // 4. Lógica de Toggle (Quitar o Poner)
     if (folderIndex > -1) {
-        // Si ya está, lo quitamos
+        // Quitar carpeta
         localAssignments[currentNoteId].splice(folderIndex, 1);
-        console.log(`Nota quitada de: ${folderName}`);
 
-        // Limpieza: si el array queda vacío, eliminamos la propiedad
+        // --- LIMPIEZA AUTOMÁTICA ---
+        // Si ya no está en NINGUNA carpeta, borramos la copia física
         if (localAssignments[currentNoteId].length === 0) {
             delete localAssignments[currentNoteId];
+            delete offlineNotes[currentNoteId]; // Borramos el contenido para ahorrar espacio
+            console.log("Nota eliminada de offlineNotes por falta de carpetas.");
         }
     } else {
-        // Si no está, lo añadimos
+        // Añadir carpeta
         localAssignments[currentNoteId].push(folderName);
-        console.log(`Nota añadida a: ${folderName}`);
-
-        // Copia física offline
         const noteToCopy = notes.find(n => n.id === currentNoteId);
         if (noteToCopy) {
             saveNoteLocally(noteToCopy);
         }
     }
 
-    // 5. Persistencia y actualización de interfaz
     localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
+    localStorage.setItem('offlineNotes', JSON.stringify(offlineNotes)); // Guardamos la limpieza
     
-    if (typeof renderFolderPicker === "function") renderFolderPicker();
-    if (typeof renderFolders === "function") renderFolders();
-} // <--- Asegúrate de que esta sea la última llave
+    renderFolderPicker();
+    renderFolders();
+}
 
 async function removeNoteFromCurrentFolder() {
     if (!currentNoteId) return;

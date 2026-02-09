@@ -98,7 +98,8 @@ html, body {
     background: #fff; 
     min-height: calc(70px + env(safe-area-inset-top, 0px));
     width: 100%;
-    gap: 0px; /
+    gap: 0px;
+    flex-wrap: nowrap;
 }
 #editor-view { 
     position: fixed; 
@@ -137,17 +138,19 @@ html, body {
 
 /* ESTILOS DE TEXTO */
 #song-display, #note-textarea { 
-    flex: 1; /* Esto ocupa el resto de la pantalla */
+    flex: 1;
     width: 100%;
-    padding: 20px 20px 60vh 20px; /* 60vh de padding inferior permite scroll infinito */
+    /* Al girar, esto limitará el ancho del texto y lo centrará */
+    max-width: 900px; 
+    margin: 0 auto; 
+    
+    padding: 20px 20px 70vh 20px; 
     white-space: pre;
-    overflow-y: auto; 
-    font-family: 'Courier New', monospace; 
-    font-size: 16px; 
-    line-height: 1.6;
+    overflow: auto;
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-size: 18px; /* Un poco más grande para el atril */
+    line-height: 1.7;
     background: white;
-    display: block; /* Asegura visibilidad */
-    min-height: 200px; /* Evita que colapse a 0 */
 }
 
 #note-textarea {

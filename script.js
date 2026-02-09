@@ -55,6 +55,15 @@ let pendingAction = null;
 // 1. Inicia el proceso de seguridad
 function secureAction(actionType) {
     console.log("Acción segura iniciada:", actionType);
+    
+    // --- NUEVA LÓGICA DE FILTRADO ---
+    // Si queremos borrar pero NO estamos en la lista principal, borrar sin PIN
+    if (actionType === 'delete' && currentFolder !== "LISTA DE CANCIONES") {
+        removeNoteFromCurrentFolder();
+        return; // Salimos de la función para que no se abra el modal
+    }
+    
+    // Si es para editar o para borrar en la lista principal, seguimos con el PIN
     pendingAction = actionType;
     
     const modal = document.getElementById('pin-modal');
@@ -520,43 +529,33 @@ function toggleFolderLink(folderName) {
     if (!currentNoteId) return;
 
     let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
-    let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
-
-    if (localAssignments[currentNoteId] && !Array.isArray(localAssignments[currentNoteId])) {
-        localAssignments[currentNoteId] = [localAssignments[currentNoteId]];
-    }
-
+    
     if (!localAssignments[currentNoteId]) localAssignments[currentNoteId] = [];
+    if (!Array.isArray(localAssignments[currentNoteId])) localAssignments[currentNoteId] = [localAssignments[currentNoteId]];
 
     const folderIndex = localAssignments[currentNoteId].indexOf(folderName);
 
     if (folderIndex > -1) {
-        // Quitar carpeta
         localAssignments[currentNoteId].splice(folderIndex, 1);
-
-        // --- LIMPIEZA AUTOMÁTICA ---
-        // Si ya no está en NINGUNA carpeta, borramos la copia física
-        if (localAssignments[currentNoteId].length === 0) {
-            delete localAssignments[currentNoteId];
-            delete offlineNotes[currentNoteId]; // Borramos el contenido para ahorrar espacio
-            console.log("Nota eliminada de offlineNotes por falta de carpetas.");
-        }
+        if (localAssignments[currentNoteId].length === 0) delete localAssignments[currentNoteId];
     } else {
-        // Añadir carpeta
         localAssignments[currentNoteId].push(folderName);
-        const noteToCopy = notes.find(n => n.id === currentNoteId);
-        if (noteToCopy) {
-            saveNoteLocally(noteToCopy);
-        }
+        
+        // --- AQUÍ ESTÁ EL TRUCO ---
+        // En lugar de buscar en 'notes', sacamos el contenido directamente del editor
+        // para asegurar que la copia física NO nazca vacía.
+        const contentFromEditor = document.getElementById('note-textarea').value;
+        const noteToSave = {
+            id: currentNoteId,
+            content: contentFromEditor
+        };
+        saveNoteLocally(noteToSave); 
     }
 
     localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
-    localStorage.setItem('offlineNotes', JSON.stringify(offlineNotes)); // Guardamos la limpieza
-    
     renderFolderPicker();
     renderFolders();
 }
-
 async function removeNoteFromCurrentFolder() {
     if (!currentNoteId) return;
 
@@ -567,27 +566,44 @@ async function removeNoteFromCurrentFolder() {
     if (confirm(mensaje)) {
         try {
             if (currentFolder === "LISTA DE CANCIONES") {
-                // 1. BORRADO TOTAL DE LA NUBE (Compartido)
+                // 1. BORRADO TOTAL DE LA NUBE
                 await notesCol.doc(currentNoteId).delete();
             } else {
-                // 2. SOLO QUITAR DE CARPETA LOCAL (Privado del teléfono)
-                // En lugar de update en Firebase, borramos la asignación local
+                // 2. SOLO QUITAR DE ESTA CARPETA (Lógica corregida)
                 let localAssignments = JSON.parse(localStorage.getItem('localFolderAssignments')) || {};
+                let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
                 
                 if (localAssignments[currentNoteId]) {
-                    delete localAssignments[currentNoteId];
+                    // Si es un array, filtramos para quitar SOLO la carpeta actual
+                    if (Array.isArray(localAssignments[currentNoteId])) {
+                        localAssignments[currentNoteId] = localAssignments[currentNoteId].filter(f => f !== currentFolder);
+                        
+                        // Si después de filtrar ya no queda en NINGUNA carpeta, borramos la entrada y la nota física
+                        if (localAssignments[currentNoteId].length === 0) {
+                            delete localAssignments[currentNoteId];
+                            delete offlineNotes[currentNoteId];
+                            console.log("Nota eliminada por completo: ya no pertenece a ninguna carpeta.");
+                        } else {
+                            console.log(`Nota mantenida: aún pertenece a otras carpetas.`);
+                        }
+                    } else {
+                        // Si por error era un string (dato viejo), simplemente lo borramos
+                        delete localAssignments[currentNoteId];
+                        delete offlineNotes[currentNoteId];
+                    }
+
                     localStorage.setItem('localFolderAssignments', JSON.stringify(localAssignments));
+                    localStorage.setItem('offlineNotes', JSON.stringify(offlineNotes));
                 }
-                console.log("Nota quitada de la carpeta localmente.");
             }
 
             // Cerrar editor y limpiar
             document.getElementById('editor-view').classList.remove('active');
-            setTimeout(() => { currentNoteId = null; }, 500);
-            
-            // Refrescar para ver los cambios
-            renderFolders();
-            renderNotes();
+            setTimeout(() => { 
+                currentNoteId = null; 
+                renderFolders();
+                renderNotes();
+            }, 300);
 
         } catch (e) {
             console.error("Error:", e);
@@ -670,55 +686,66 @@ function renderNotes() {
 
     let filtered = [];
 
+    // 1. FILTRADO DE NOTAS
     if (currentFolder === "LISTA DE CANCIONES") {
         filtered = notes;
     } else {
-        // CORRECCIÓN AQUÍ: Usar .includes() porque ahora es un Array
+        // Buscamos los IDs que pertenecen a esta carpeta
         const idsInFolder = Object.keys(localAssignments).filter(id => {
             const assigned = localAssignments[id];
+            // IMPORTANTE: Verificamos que sea un array y contenga el nombre
             return Array.isArray(assigned) && assigned.includes(currentFolder);
         });
         
+        // Mapeamos a los datos reales de la nota
         filtered = idsInFolder.map(id => offlineNotes[id]).filter(n => n != null);
     }
 
-    // --- BÚSQUEDA INTELIGENTE ---
+    // 2. BÚSQUEDA (Si hay algo escrito en el buscador)
     if (searchQuery) {
-        filtered = filtered.filter(n => getCleanText(n.content).toLowerCase().includes(searchQuery));
+        filtered = filtered.filter(n => {
+            const text = (n.content || "").toLowerCase();
+            return text.includes(searchQuery);
+        });
     }
 
-    // --- ORDEN ALFABÉTICO ---
+    // 3. ORDEN ALFABÉTICO (Basado en el primer renglón limpio)
     filtered.sort((a, b) => {
-        const textA = getCleanText(a.content).toLowerCase();
-        const textB = getCleanText(b.content).toLowerCase();
-        return textA.localeCompare(textB);
+        const titleA = getCleanText(a.content || "").toLowerCase();
+        const titleB = getCleanText(b.content || "").toLowerCase();
+        return titleA.localeCompare(titleB);
     });
 
+    // 4. DIBUJAR EN PANTALLA
     if (filtered.length === 0) {
-        list.innerHTML = `<div style="text-align:center; color:gray; margin-top:2rem;">No hay canciones aquí</div>`;
+        list.innerHTML = `<div style="text-align:center; color:gray; margin-top:2rem;">No hay canciones en "${currentFolder}"</div>`;
         return;
     }
 
-    // --- AGRUPAR POR LETRA ---
+    list.innerHTML = "";
+    
+    // Agrupamos por letra para los encabezados
     const groups = {};
-    filtered.forEach(n => {
-        const cleanContent = getCleanText(n.content);
-        const char = cleanContent ? cleanContent[0].toUpperCase() : "N";
-        if (!groups[char]) groups[char] = [];
-        groups[char].push(n);
+    filtered.forEach(note => {
+        const cleanContent = getCleanText(note.content || "");
+        const firstChar = cleanContent ? cleanContent[0].toUpperCase() : "?";
+        if (!groups[firstChar]) groups[firstChar] = [];
+        groups[firstChar].push(note);
     });
 
-    list.innerHTML = "";
     Object.keys(groups).sort().forEach(letter => {
+        // Añadir letra (A, B, C...)
         list.innerHTML += `<div class="alphabet-header">${letter}</div>`;
+        
+        // Añadir cada nota del grupo
         groups[letter].forEach(note => {
-            const allLines = getCleanText(note.content).split('\n').map(l => l.trim()).filter(l => l !== "");
-            const title = allLines[0] || "Nueva canción";
-            const subtitle = allLines[1] || "Ver canción...";
+            const lines = (note.content || "").split('\n').filter(l => l.trim() !== "");
+            const title = getCleanText(lines[0] || "Nueva canción");
+            const subtitle = getCleanText(lines[1] || "Ver detalles...");
 
             list.innerHTML += `
-                <div class="note-item" onclick="openNote('${note.id}')">
-                    <span style="font-weight:600; display:block;">${title}</span>
+                <div class="note-item" onclick="openNote('${note.id}')" style="cursor:pointer; padding:12px; border-bottom:1px solid #eee;">
+                    <span style="font-weight:600; display:block; color:#333;">${title}</span>
                     <span style="font-size:0.85rem; color:gray;">${subtitle}</span>
                 </div>`;
         });
@@ -731,18 +758,16 @@ function saveNoteLocally(note) {
 
     let localNotes = JSON.parse(localStorage.getItem('offlineNotes')) || {};
     
-    // Guardamos la nota CON TODAS sus propiedades (título, artista, etc.)
-    // Usamos el operador spread (...) para traer todo y solo modificar el updatedAt
+    // Forzamos que el objeto tenga TODO lo necesario
     localNotes[note.id] = {
-        ...note, // Esto copia title, artist, style, etc.
+        id: note.id,
         content: note.content || "",
-        updatedAt: note.updatedAt && typeof note.updatedAt.toMillis === 'function' 
-            ? note.updatedAt.toMillis() 
-            : (typeof note.updatedAt === 'number' ? note.updatedAt : Date.now())
+        title: note.title || "", // Por si acaso usas título aparte
+        updatedAt: Date.now()
     };
     
     localStorage.setItem('offlineNotes', JSON.stringify(localNotes));
-    console.log(`Nota "${note.id}" guardada físicamente con éxito.`);
+    console.log("Sincronización física completada para ID:", note.id);
 }
 
 // Ejemplo de cómo cargar notas priorizando el almacenamiento local

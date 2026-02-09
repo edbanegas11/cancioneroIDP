@@ -33,7 +33,7 @@ html, body {
 .app-container { 
     width: 100%; 
     max-width: 430px; 
-    height: 150vh; /* Altura dinámica para navegadores móviles */
+    height: 100vh; /* Altura dinámica para navegadores móviles */
     background: var(--bg); 
     position: relative;
     margin: 0 auto;
@@ -131,14 +131,15 @@ html, body {
     
     /* EL TRUCO: env(safe-area-inset-bottom) detecta la zona de la "rayita" del iPhone.
        Le sumamos un poco más para que no quede pegado al cristal inferior. */
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0px); 
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
     
     background: #fafafa; 
     border-top: 0.5px solid #eee; 
     width: 100%;
     
     /* Forzamos que la barra crezca hacia abajo para rellenar el hueco gris */
-    min-height: calc(60px + env(safe-area-inset-bottom, 0px));
+    min-height: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+    flex-shrink: 0;
 }
 
 /* ESTILOS DE TEXTO */

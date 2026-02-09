@@ -233,9 +233,14 @@ function transpose(semitones) {
 
 async function createNewNote() {
     try {
-        // 1. Creamos la nota en Firebase con contenido VACÍO
+        // --- CONTROL DEL BOTÓN ---
+        // Lo ocultamos inmediatamente para que solo exista en la principal
+        const btnNew = document.querySelector('.btn-new');
+        if (btnNew) btnNew.style.display = 'none';
+
+        // 1. Creamos la nota en Firebase
         const newNoteRef = await notesCol.add({
-            content: "", // Sin texto inicial para que no ensucie la base de datos
+            content: "", 
             folders: ["LISTA DE CANCIONES"], 
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -243,25 +248,29 @@ async function createNewNote() {
 
         currentNoteId = newNoteRef.id;
         
-        // 2. Referencia al textarea
         const textarea = document.getElementById('note-textarea');
-        
-        // 3. Ponemos el valor vacío y añadimos el Placeholder
         textarea.value = ""; 
         textarea.placeholder = "Escribe tu canción aquí..."; 
         
         updateSongDisplay();
         
+        // 2. Cambio de vista
         document.getElementById('editor-view').classList.add('active');
-        document.getElementById('view-mode').style.display = 'none';
+        document.getElementById('view-mode').style.display = 'none'; // Al crear, vamos directo a editar
         document.getElementById('edit-mode').style.display = 'flex';
         
+        // 3. Foco automático mejorado para móviles
         setTimeout(() => {
             textarea.focus();
-        }, 200);
+            // Truco: Scroll al inicio para evitar que el teclado mueva el layout de forma errática
+            window.scrollTo(0, 0);
+        }, 300);
 
     } catch (e) { 
         console.error("Error al crear:", e); 
+        // Si falla, volvemos a mostrar el botón
+        const btnNew = document.querySelector('.btn-new');
+        if (btnNew) btnNew.style.display = 'flex';
         alert("No se pudo crear la nota en la nube.");
     }
 }
@@ -270,7 +279,9 @@ function openNote(id) {
     currentNoteId = id;
     const note = notes.find(n => n.id === id);
     if (!note) return;
-  const btnNew = document.querySelector('.btn-new');
+
+    // Usar siempre el ID para evitar confusiones
+    const btnNew = document.getElementById('btn-floating-main');
     if (btnNew) btnNew.style.display = 'none';
 
     document.getElementById('note-textarea').value = note.content;
@@ -403,41 +414,23 @@ function renderFolderPicker() {
             </div>`;
     }).join('');
 }
-
 async function saveAndClose() {
     const textarea = document.getElementById('note-textarea');
-    const content = (textarea.value || "").trim();
     const editorView = document.getElementById('editor-view');
 
-    // 1. REGRESAR A LA PANTALLA PRINCIPAL DE INMEDIATO
-    // Quitamos la clase 'active' primero para que el usuario vea que la app responde
     if (editorView) {
         editorView.classList.remove('active');
     }
 
-    // 2. Lógica de borrado (Sin await para no congelar)
-    if (currentNoteId && content === "") {
-        // Firebase se encarga de esto en segundo plano
-        notesCol.doc(currentNoteId).delete()
-            .catch(e => console.log("Borrado pendiente de conexión"));
-            
-    } else if (currentNoteId) {
-        // 3. Restaurar original (Localmente es instantáneo, no necesita await)
-        const originalNote = notes.find(n => n.id === currentNoteId);
-        if (originalNote) {
-            textarea.value = originalNote.content;
-            updateSongDisplay();
-        }
-    }
+    // 1. Mostrar botón usando el ID único
+    const btnNew = document.getElementById('btn-floating-main');
+    if (btnNew) btnNew.style.display = 'flex'; 
 
-    // 4. Limpieza de interfaz (con un pequeño delay para la animación)
     setTimeout(() => {
         document.getElementById('view-mode').style.display = 'flex';
         document.getElementById('edit-mode').style.display = 'none';
-
+        // BORRA ESTA LÍNEA QUE TENÍAS: document.getElementById('btn-floating-main').style.display = 'none';
         currentNoteId = null;
-        if (textarea) textarea.placeholder = ""; 
-        
         renderNotes(); 
     }, 300);
 }
@@ -447,7 +440,9 @@ async function exitEditMode() {
     const newContent = textarea.value.trim();
 
     if (!currentNoteId) return;
-
+    
+    const btn = document.getElementById('btn-floating-main');
+    if (btn) btn.style.display = 'none';
     // CASO A: Si la nota está VACÍA
     if (newContent === "") {
         // Cerramos el panel completo de inmediato
@@ -607,6 +602,7 @@ function openEditMode() {
     // 2. Cambiamos de pantalla
     document.getElementById('view-mode').style.display = 'none';
     document.getElementById('edit-mode').style.display = 'block';
+    document.getElementById('btn-floating-main').style.display = 'none';
 
     // 3. Opcional: Ajustar altura del textarea automáticamente
     textarea.style.height = 'auto';

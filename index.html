@@ -21,8 +21,9 @@
 
 <div class="app-container">
     <div id="pin-modal">
+        <i data-lucide="lock" style="width: 45px; height: 45px; color: #ff9500; margin-bottom: 20px;"></i>
         <h2 style="font-weight: 700; margin-bottom: 10px;">Seguridad</h2>
-        <input type="password" id="pin-input" maxlength="6" inputmode="numeric" placeholder="" style="width: 180px; text-align: center; font-size: 2.5rem; border: none; border-bottom: 3px solid #ff9500; outline: none; letter-spacing: 8px; background: transparent;">
+        <input type="password" id="pin-input" maxlength="6" inputmode="numeric" style="width: 180px; text-align: center; font-size: 2.5rem; border: none; border-bottom: 3px solid #ff9500; outline: none; letter-spacing: 8px;">
         <p id="pin-error" style="color: var(--danger); font-size: 0.85rem; margin-top: 15px; opacity: 0;">PIN Incorrecto</p>
         <div style="margin-top: 40px; display: flex; gap: 25px;">
             <button onclick="closePinModal()" class="btn-text" style="color: #8e8e93;">Cancelar</button>
@@ -31,14 +32,14 @@
     </div>
 
     <div id="list-view" style="display:flex; flex-direction:column; height:100%;">
-        <header style="padding: 3rem 1.5rem 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <header style="padding: 1.5rem 0.5rem 0.2rem; display: flex; justify-content: space-between; align-items: center;">
             <h1 style="font-size: 2rem; font-weight: 800;">Cancionero IDP</h1>
             <button onclick="addNewFolder()" class="btn-icon" style="color:var(--folder-accent);">
                 <i data-lucide="folder-plus"></i>
             </button>
         </header>
         
-        <div style="padding: 0 1.5rem 0.5rem;">
+        <div style="padding: 0 0.5rem 0.1rem;">
             <div style="background: #e5e5ea; border-radius: 10px; display: flex; align-items: center; padding: 8px 12px;">
                 <i data-lucide="search" style="width: 16px; color: #8e8e93; margin-right: 8px;"></i>
                 <input type="text" id="search-input" placeholder="Buscar canción..." oninput="handleSearch()" style="background: transparent; border: none; outline: none; width: 100%; font-size: 1rem;">
@@ -47,10 +48,7 @@
 
         <div class="folder-section" id="folder-bar"></div>
         <div class="notes-list" id="notes-list"></div>
-        
-        <button class="btn-new" onclick="createNewNote()">
-            <i data-lucide="plus"></i>
-        </button>
+        <button class="btn-new" onclick="createNewNote()"><i data-lucide="plus"></i></button>
     </div>
 
     <div id="editor-view">
@@ -136,3 +134,4 @@
 </script>
 </body>
 </html>
+

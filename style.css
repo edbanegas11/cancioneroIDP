@@ -33,7 +33,7 @@ html, body {
 .app-container { 
     width: 100%; 
     max-width: 430px; 
-    height: 100dvh; /* Altura dinámica para navegadores móviles */
+    height: 150vh; /* Altura dinámica para navegadores móviles */
     background: var(--bg); 
     position: relative;
     margin: 0 auto;
@@ -93,22 +93,22 @@ html, body {
     justify-content: space-between; 
     align-items: center; 
     /* Aumentamos padding superior para alejar de la cámara */
-    padding: calc(env(safe-area-inset-top, 20px) + 10px) 100px 15px 15px; 
+    padding: calc(env(safe-area-inset-top, 20px) + 5px) 15px 10px 15px;
     border-bottom: 0.5px solid var(--border); 
     background: #fff; 
     min-height: calc(50px + env(safe-area-inset-top, 0px));
-    width: 60%;
+    width: 100%;
     gap: 0px;
     flex-shrink: 0;
     flex-wrap: nowrap;
 }
 #editor-view { 
-    position: fixed; 
+    position: absolute; 
     inset: 0; 
     background: var(--bg); 
     display: flex; 
     flex-direction: column; 
-    z-index: 2000; 
+    z-index: 1200; 
     /* Cambiamos a 100dvh para asegurar que llegue hasta abajo del todo */
     height: 100dvh; 
     transform: translateY(100%); 
@@ -133,15 +133,10 @@ html, body {
        Le sumamos un poco más para que no quede pegado al cristal inferior. */
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0px); 
     
-    background: #f9f9f9; 
-    border-top: 0.5px solid #d1d1d6; 
+    background: #fafafa; 
+    border-top: 0.5px solid #eee; 
     width: 100%;
-    padding-top: 15px;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 15px);
-    padding-left: 20px;
-    padding-right: 20px;
     
-    flex-shrink: 0;
     /* Forzamos que la barra crezca hacia abajo para rellenar el hueco gris */
     min-height: calc(60px + env(safe-area-inset-bottom, 0px));
 }
@@ -161,11 +156,6 @@ html, body {
     font-size: 18px; /* Un poco más grande para el atril */
     line-height: 1.7;
     background: white;
-  
-    max-width: 800px;
-    margin: 0 auto; /* Esto centra el bloque de la canción */
-    padding: 20px;
-    text-align: left; /* La letra sigue alineada a la izquierda */
 }
 
 #note-textarea {
